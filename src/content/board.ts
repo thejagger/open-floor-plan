@@ -1,0 +1,16 @@
+import type { BoardDef } from '../sim/board';
+
+export const MILESTONE_1_BOARD: BoardDef = {
+  width: 12,
+  height: 9,
+  path: [
+    { x: 0, y: 4 }, { x: 1, y: 4 }, { x: 2, y: 4 },
+    { x: 2, y: 3 }, { x: 2, y: 2 }, { x: 2, y: 1 },
+    { x: 3, y: 1 }, { x: 4, y: 1 }, { x: 5, y: 1 }, { x: 6, y: 1 },
+    { x: 6, y: 2 }, { x: 6, y: 3 }, { x: 6, y: 4 }, { x: 6, y: 5 },
+    { x: 6, y: 6 }, { x: 6, y: 7 },
+    { x: 7, y: 7 }, { x: 8, y: 7 }, { x: 9, y: 7 },
+    { x: 9, y: 6 }, { x: 9, y: 5 }, { x: 9, y: 4 },
+    { x: 10, y: 4 }, { x: 11, y: 4 },
+  ],
+};
