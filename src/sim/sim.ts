@@ -18,12 +18,11 @@ export const TICK_RATE = 20;
 export type Phase = 'build' | 'running' | 'victory' | 'defeat';
 export type RunRules = { startingUptime: number; deskBudget: number };
 
-export type WaveRuntime = { schedule: number[]; spawned: number; resolved: number; waveTick: number };
+export type WaveRuntime = { schedule: number[]; spawned: number; waveTick: number };
 
 export type RunState = {
   board: BoardDef;
   waves: WaveDef[];
-  seed: number;
   rngState: RngState;
   tick: number;
   phase: Phase;
@@ -41,7 +40,6 @@ export function createRun(board: BoardDef, waves: WaveDef[], seed: number): RunS
   return {
     board,
     waves,
-    seed,
     rngState: createRng(seed),
     tick: 0,
     phase: 'build',
@@ -67,15 +65,17 @@ export function tick(run: RunState, commands: Command[]): { run: RunState; event
   };
   const events: SimEvent[] = [];
 
-  // 1. Apply commands — accepted only while phase === 'build'.
+  // 1. Apply commands — accepted only while phase === 'build'. Checked per-command, not
+  // once before the loop, because StartSprint can flip the phase partway through a batch.
   if (next.phase === 'build') {
     for (const command of commands) {
+      if (next.phase !== 'build') break;
       if (command.type === 'StartSprint') {
         if (next.wave !== null) continue;
         const waveDef = next.waves[next.currentWave];
         const built = buildSchedule(waveDef, next.rngState);
         next.rngState = built.rngState;
-        next.wave = { schedule: built.schedule, spawned: 0, resolved: 0, waveTick: 0 };
+        next.wave = { schedule: built.schedule, spawned: 0, waveTick: 0 };
         next.phase = 'running';
       } else if (command.type === 'PlaceDesk') {
         const occupied = next.desks.map((d) => ({ x: d.x, y: d.y }));
@@ -107,7 +107,6 @@ export function tick(run: RunState, commands: Command[]): { run: RunState; event
       next.uptime -= lost;
       events.push({ type: 'UptimeLost', amount: lost, uptime: next.uptime });
       next.bugs = next.bugs.filter((b) => b.id !== bug.id);
-      wave.resolved += 1;
     }
 
     // 2.3 Defeat
@@ -148,7 +147,6 @@ export function tick(run: RunState, commands: Command[]): { run: RunState; event
       if (target.hp <= 0) {
         events.push({ type: 'BugKilled', bugId: target.id, deskId: desk.id });
         next.bugs = next.bugs.filter((b) => b.id !== target.id);
-        wave.resolved += 1;
       }
     }
 

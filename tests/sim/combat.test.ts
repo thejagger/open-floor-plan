@@ -82,6 +82,20 @@ describe('targeting', () => {
     }
   });
 
+  it('selects the bug further along the path even when it has the higher entity id', () => {
+    // T9 (above) always spawns the leader with the lower id (earlier spawn = further along),
+    // so it can't tell "furthest along" apart from "lowest id" — this pins distance as the
+    // primary key regardless of id ordering.
+    const desk = createDesk(1, { x: 4, y: 0 }, DEVELOPER);
+    const ahead = { ...createBug(9, bugStats()), distance: 5 };
+    const behind = { ...createBug(2, bugStats()), distance: 3 };
+
+    expect(selectTarget(desk, [
+      { bug: ahead, x: 4, y: 1 },
+      { bug: behind, x: 4, y: 1 },
+    ])?.id).toBe(9);
+  });
+
   it('resolves equal progress to the lowest entity id', () => {
     const desk = createDesk(1, { x: 4, y: 0 }, DEVELOPER);
     const behind = { ...createBug(7, bugStats()), distance: 4 };

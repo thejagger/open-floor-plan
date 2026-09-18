@@ -20,3 +20,6 @@ Thumbs.db
 npm-debug.log*
 
 .ristretto/
+
+# left behind by tests/boundary.test.ts if a run is killed mid-test
+src/**/__boundary_probe__.ts

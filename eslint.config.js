@@ -22,10 +22,7 @@ export default tseslint.config(
           patterns: [
             { group: ['three', 'three/*', '@react-three/*'], message: RENDERER_FREE },
             {
-              group: [
-                '../render', '../render/*', '../../render/*', '**/render/**',
-                '../ui', '../ui/*', '../../ui/*', '**/ui/**',
-              ],
+              group: ['../render', '**/render/**', '../ui', '**/ui/**'],
               message: RENDERER_FREE,
             },
           ],
