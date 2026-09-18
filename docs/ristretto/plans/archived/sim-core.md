@@ -70,4 +70,44 @@ All tuning values live in `src/content/` as plain tables. Nothing in `src/sim/` 
 - Depends: —
 - Parallel-with: —
 
-status: planned
+## Evidence
+
+Gates green on `ce4b4bd` (feature/brew-2026-09-18): `npm run lint` exit 0 (eslint .,
+no errors); `npx tsc --noEmit` exit 0; `npm test` (vitest run) 23/23 passed across 6 files
+(tests/sim/board.test.ts, tests/sim/waves.test.ts, tests/sim/commands.test.ts,
+tests/sim/combat.test.ts, tests/sim/run.test.ts, tests/boundary.test.ts).
+
+Criterion → test proof (unchanged from the build plan's map, `.ristretto/build/sim-core.md`):
+
+| Criterion | Test |
+| --- | --- |
+| identical event stream across two runs | `determinism > replays the same board, seed and commands` |
+| N ticks independent of wall clock | `determinism > advances by N ticks identically` |
+| leak emits BugLeaked + UptimeLost, costs leak cost | `a bug that reaches Production` |
+| uptime never increases | `uptime > never increases at any point in a run` |
+| uptime 0 → defeat, RunOver, no further wave | `the end of a run > enters defeat at uptime 0` |
+| clearing wave 5 → victory, RunOver | `the end of a run > enters victory after clearing the fifth wave` |
+| damages only in range | `a desk out of range` |
+| damages only when cooldown elapsed | `a desk in range` |
+| targets furthest along path | `targeting > shoots the bug furthest along the path`, plus round-2 addition `targeting > selects the bug further along the path even when it has the higher entity id` |
+| ties → lowest entity id | `targeting > resolves equal progress to the lowest entity id` |
+| command during running rejected, no mutation | `a command submitted while a wave runs`, plus round-2 addition `a command submitted while a wave runs > rejects commands queued after StartSprint in the same batch` |
+| PlaceDesk rejected: path / bounds / occupied / budget | `PlaceDesk > is rejected on $name` (5 cases, budget case reworked in round 2 to also prove RemoveDesk reopens the budget) |
+| wave ends only when all spawned bugs resolved | `a wave > ends only once every spawned bug has resolved` |
+| lint fails on renderer imports in sim/ and content/ | `the renderer-free boundary` (2 cases) |
+
+Round-2 fixer changes beyond new tests: dropped dead exports `BUGS`/`ROLES` (not part of the
+contract's `Provides:`), collapsed `rng.ts` to a single `nextInt` (removed unused
+`nextUint32`/`nextFloat`), simplified the eslint `render`/`ui` glob patterns, dropped the
+unused `seed` field and `wave.resolved` counter from `RunState`, and made command processing
+break out of the batch loop the instant `StartSprint` flips phase to `running` so any command
+queued after it in the same `tick()` call is rejected too — closing a gap the round-1 review
+found in the no-intervention-during-running rule. `.gitignore` now excludes
+`__boundary_probe__.ts` leftovers from a killed boundary test run.
+
+Manual-Checks: none — matches the contract's `Manual-Checks: —`.
+
+review: resolved · rounds: 2 · open: 0 block, 0 note, 0 lean
+tier: normal
+
+status: done
