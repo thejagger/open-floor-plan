@@ -110,6 +110,14 @@ export function tick(run: RunState, commands: Command[]): { run: RunState; event
       wave.resolved += 1;
     }
 
+    // 2.3 Defeat
+    if (next.uptime === 0) {
+      next.phase = 'defeat';
+      events.push({ type: 'RunOver', outcome: 'defeat', wave: next.currentWave + 1, uptime: 0 });
+      next.tick += 1;
+      return { run: next, events };
+    }
+
     // 2.4 Spawn
     for (let i = 0; i < wave.schedule.length; i += 1) {
       if (wave.schedule[i] === wave.waveTick) {
@@ -150,9 +158,14 @@ export function tick(run: RunState, commands: Command[]): { run: RunState; event
     // 2.7 Wave end
     if (wave.spawned === waveDef.count && next.bugs.length === 0) {
       events.push({ type: 'WaveEnded', wave: next.currentWave + 1, uptime: next.uptime });
-      next.phase = 'build';
-      next.currentWave += 1;
       next.wave = null;
+      if (next.currentWave === next.waves.length - 1) {
+        next.phase = 'victory';
+        events.push({ type: 'RunOver', outcome: 'victory', wave: next.currentWave + 1, uptime: next.uptime });
+      } else {
+        next.phase = 'build';
+        next.currentWave += 1;
+      }
     }
   }
 

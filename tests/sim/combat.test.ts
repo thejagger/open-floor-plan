@@ -22,7 +22,7 @@ describe('a desk out of range', () => {
     expect(events.filter((e) => e.type === 'DeskFired')).toHaveLength(0);
     expect(events.filter((e) => e.type === 'BugDamaged')).toHaveLength(0);
     expect(events.some((e) => e.type === 'BugLeaked')).toBe(true);
-    expect(run.phase).toBe('build');
+    expect(run.phase).toBe('victory'); // the wave still resolves (leaked, not killed) and it's the only wave
   });
 });
 

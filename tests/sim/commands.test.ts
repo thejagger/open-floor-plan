@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { createRun, tick } from '../../src/sim/sim';
 import { MILESTONE_1_RUN } from '../../src/content/run';
-import { straightBoard, wave } from '../helpers/sim';
+import { advance, bugStats, straightBoard, wave } from '../helpers/sim';
 import type { Command } from '../../src/sim/commands';
 
 const fullBudget: Command[] = Array.from(
@@ -32,5 +32,26 @@ describe('PlaceDesk', () => {
     expect(noisy.run).toEqual(quiet.run);
     expect(noisy.events).toEqual(quiet.events);
     expect(noisy.run.desks).toHaveLength(setup.length);
+  });
+});
+
+describe('a command submitted while a wave runs', () => {
+  it('is rejected and mutates no state', () => {
+    const run0 = createRun(straightBoard(12), [wave(3, { bug: bugStats({ hp: 100 }) })], 4);
+    const built = tick(run0, [{ type: 'PlaceDesk', x: 2, y: 0 }, { type: 'StartSprint' }]).run;
+    const running = advance(built, 30).run;
+    expect(running.phase).toBe('running');
+
+    const before = structuredClone(running);
+    const quiet = tick(running, []);
+    const noisy = tick(running, [
+      { type: 'PlaceDesk', x: 5, y: 0 },
+      { type: 'RemoveDesk', deskId: running.desks[0].id },
+      { type: 'StartSprint' },
+    ]);
+
+    expect(noisy.run).toEqual(quiet.run);
+    expect(noisy.events).toEqual(quiet.events);
+    expect(running).toEqual(before); // tick mutated nothing it was handed
   });
 });
