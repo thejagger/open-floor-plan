@@ -1,13 +1,16 @@
-import { pathLength } from './board';
+import { pathLength, placementError, pointAtDistance } from './board';
 import type { BoardDef } from './board';
+import { selectTarget } from './combat';
+import type { Positioned } from './combat';
 import type { Command } from './commands';
-import { createBug } from './entities';
+import { createBug, createDesk } from './entities';
 import type { Bug, Desk, EntityId } from './entities';
 import type { SimEvent } from './events';
 import { createRng } from './rng';
 import type { RngState } from './rng';
 import { buildSchedule } from './waves';
 import type { WaveDef } from './waves';
+import { DEVELOPER } from '../content/roles';
 import { MILESTONE_1_RUN } from '../content/run';
 
 export const TICK_RATE = 20;
@@ -74,8 +77,15 @@ export function tick(run: RunState, commands: Command[]): { run: RunState; event
         next.rngState = built.rngState;
         next.wave = { schedule: built.schedule, spawned: 0, resolved: 0, waveTick: 0 };
         next.phase = 'running';
+      } else if (command.type === 'PlaceDesk') {
+        const occupied = next.desks.map((d) => ({ x: d.x, y: d.y }));
+        if (next.desks.length >= next.deskBudget) continue;
+        if (placementError(next.board, occupied, command.x, command.y) !== null) continue;
+        next.desks.push(createDesk(next.nextEntityId, { x: command.x, y: command.y }, DEVELOPER));
+        next.nextEntityId += 1;
+      } else if (command.type === 'RemoveDesk') {
+        next.desks = next.desks.filter((d) => d.id !== command.deskId);
       }
-      // PlaceDesk / RemoveDesk arrive in unit 4.
     }
   }
 
@@ -108,6 +118,29 @@ export function tick(run: RunState, commands: Command[]): { run: RunState; event
         next.bugs.push(bug);
         events.push({ type: 'BugSpawned', bugId: bug.id, bugType: bug.type, hp: bug.hp });
         wave.spawned += 1;
+      }
+    }
+
+    // 2.5 Fire — positions are fixed for the tick (movement already happened), but the
+    // candidate list is rebuilt per desk so a bug an earlier desk kills this tick can't
+    // still be targeted (and orphan-fired on) by a later one.
+    const positions = new Map<EntityId, { x: number; y: number }>();
+    for (const bug of next.bugs) positions.set(bug.id, pointAtDistance(next.board, bug.distance));
+
+    for (const desk of next.desks) {
+      desk.cooldownRemaining = Math.max(0, desk.cooldownRemaining - 1);
+      if (desk.cooldownRemaining > 0) continue;
+      const candidates: Positioned[] = next.bugs.map((bug) => ({ bug, ...positions.get(bug.id)! }));
+      const target = selectTarget(desk, candidates);
+      if (!target) continue;
+      events.push({ type: 'DeskFired', deskId: desk.id, targetId: target.id, damage: desk.damage });
+      target.hp -= desk.damage;
+      events.push({ type: 'BugDamaged', bugId: target.id, deskId: desk.id, damage: desk.damage, hpRemaining: target.hp });
+      desk.cooldownRemaining = desk.cooldownTicks;
+      if (target.hp <= 0) {
+        events.push({ type: 'BugKilled', bugId: target.id, deskId: desk.id });
+        next.bugs = next.bugs.filter((b) => b.id !== target.id);
+        wave.resolved += 1;
       }
     }
 
