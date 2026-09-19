@@ -93,8 +93,8 @@ Criterion -> test proof (per the build plan's map, `.ristretto/build/render-dior
 | defeat overlay / victory overlay / restart with a new seed | `overlays.spec.ts > shows the defeat overlay at uptime 0 and restarts into a new run`; `> shows the victory overlay after clearing wave 5 and restarts into a new run` |
 | full 5-wave run, no uncaught exception, no console error | `run.spec.ts > plays a full five-wave run with no uncaught exception and no console error` |
 | catch-up cap (a `Decisions:` ruling, pure, pinned nowhere else) | `tests/game/stepper.test.ts` (2 cases), plus `tests/game/engine-timescale.test.ts` added in review to pin the timeScale fix below |
-| the board reads as an intentional finished diorama | pending human: `docs/ristretto/manual-checks.md` check 1 |
-| placing desks and watching a wave resolve is enjoyable | pending human: `docs/ristretto/manual-checks.md` check 2 |
+| the board reads as an intentional finished diorama | confirmed by user manual check, `docs/ristretto/manual-checks.md` check 1, 2026-09-19 |
+| placing desks and watching a wave resolve is enjoyable | confirmed by user manual check, `docs/ristretto/manual-checks.md` check 2, 2026-09-19 |
 
 The first implementer was interrupted mid-work; the orchestrator then debugged the failing e2e
 suite directly, ahead of review. Defects found and fixed across the whole feature:
@@ -137,11 +137,21 @@ Reviewer's trailing observation, not a finding: `.ristretto/build/render-diorama
 transcribes `run.spec.ts` as `openGame(page)` with `frame > 200`; the shipped test is
 `fx: 'off'` with `> 30`.
 
-Manual-Checks: both `[human]` criteria unticked in `docs/ristretto/manual-checks.md` — the board
-reading as an intentional finished diorama, and whether placing desks and watching a wave
-resolve is enjoyable. Neither can be proven by this repo's tooling; both `pending human`.
+Manual-Checks: both `[human]` criteria in `docs/ristretto/manual-checks.md` are now ticked. Neither
+has an automatable proxy — the plan records this at the time each check was written (check 1: "no
+test in this repo can hold an aesthetic opinion"; check 2: "a subjective judgement with no
+automatable proxy" and the milestone's own success criterion) — so no test was added or un-skipped
+for either; that would pin an opinion, not prove one. The user played the game and confirmed both
+in their own words on 2026-09-19: the board "looks insane" (positively — an intentional, finished
+diorama, not unfinished primitives), and placing desks and watching a wave resolve is enjoyable
+("i did [play], i love it"). Milestone 1's success criterion is answered YES: continue to
+Milestone 2, no core-loop rework needed.
+
+Check re-run: `npm run lint` exit 0, `npx tsc --noEmit` exit 0, `npm run build` exit 0, `npm test`
+green (27 unit + 10 Playwright e2e, unchanged from close), `gate.js verify` exit 0 — all unchanged
+since `291aebf`, confirming the check re-run needed no code change, only the human signature.
 
 review: resolved · rounds: 3 · open: 0 block, 0 note, 0 lean
 tier: normal
 
-status: needs-human
+status: done
