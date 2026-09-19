@@ -1,0 +1,11 @@
+export const ROLE_COLOUR: Record<string, string> = { developer: '#4ea8ff' };
+export const BUG_COLOUR: Record<string, string> = { typo: '#c9f16a' };
+export const FLOOR_COLOUR = '#2c3440';
+export const FLOOR_ALT_COLOUR = '#323b48';
+export const PATH_COLOUR = '#8a6a3f';
+export const ENTRANCE_COLOUR = '#6fe3a8';
+export const PRODUCTION_COLOUR = '#ffb454';
+export const FLASH_COLOUR = '#ffffff';
+export const VALID_COLOUR = '#6fe3a8';
+export const INVALID_COLOUR = '#ff6b6b';
+export const BACKDROP_COLOUR = '#0d1117';

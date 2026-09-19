@@ -6,11 +6,11 @@ const RENDERER_FREE =
   'src/sim and src/content are renderer-free: no three, no @react-three, no ../render, no ../ui.';
 
 export default tseslint.config(
-  { ignores: ['dist/**', 'coverage/**', 'node_modules/**'] },
+  { ignores: ['dist/**', 'coverage/**', 'node_modules/**', 'test-results/**', 'playwright-report/**'] },
   js.configs.recommended,
   ...tseslint.configs.recommended,
   {
-    files: ['**/*.{ts,js}'],
+    files: ['**/*.{ts,tsx,js}'],
     languageOptions: { globals: { ...globals.node, ...globals.browser } },
   },
   {
