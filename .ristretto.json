@@ -1,9 +1,40 @@
 {
   "gates": {
     "format": "",
-    "lint": "node -e \"process.exit(require('fs').existsSync('package.json')?1:0)\" || npm run lint",
-    "typecheck": "node -e \"process.exit(require('fs').existsSync('tsconfig.json')?1:0)\" || npx tsc --noEmit",
-    "test": "node -e \"process.exit(require('fs').existsSync('package.json')?1:0)\" || npm test",
-    "testChanged": ""
+    "lint": "npm run lint",
+    "typecheck": "npm run typecheck",
+    "test": "npm test",
+    "testChanged": [
+      {
+        "name": "docs",
+        "match": ["docs/**", "**/*.md", ".gitignore", ".ristretto.json"],
+        "cmd": ""
+      },
+      {
+        "name": "unit-specs",
+        "match": ["tests/**/*.test.ts"],
+        "cmd": "npx vitest run {files}"
+      },
+      {
+        "name": "e2e",
+        "match": ["tests/e2e/**"],
+        "cmd": "npx playwright test"
+      },
+      {
+        "name": "sim",
+        "match": ["src/sim/**", "src/content/**"],
+        "cmd": "npx vitest related --run {files}"
+      },
+      {
+        "name": "render",
+        "match": ["src/render/**", "src/ui/**", "src/store/**", "src/dev/**", "src/*.ts", "src/*.tsx", "src/*.css"],
+        "cmd": "npx playwright test"
+      },
+      {
+        "name": "integration",
+        "match": ["src/game/**", "package.json", "package-lock.json", "tsconfig.json", "vite.config.ts", "eslint.config.js", "playwright.config.ts", "index.html"],
+        "cmd": "npm test"
+      }
+    ]
   }
 }
