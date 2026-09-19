@@ -71,4 +71,77 @@ Juice reads the event queue rather than diffing snapshots. A hit flash belongs t
 - Depends: sim-core
 - Parallel-with: —
 
-status: planned
+## Evidence
+
+Gates green on `c459d0e` (feature/brew-2026-09-18): `npm run lint` exit 0; `npx tsc --noEmit`
+exit 0; `npm run build` exit 0; `npm test` (vitest run, then playwright test) green — 27 unit
+tests plus 10 Playwright e2e specs. `tests/e2e/placement.spec.ts --repeat-each=5` ran 120/120
+across 6 stress runs. Full e2e suite wall clock improved from 9.7min to 1.9min over the course
+of review.
+
+Criterion -> test proof (per the build plan's map, `.ristretto/build/render-diorama.md`):
+
+| Criterion | Test |
+| --- | --- |
+| click an empty non-path tile places a desk, in the snapshot and in the scene | `placement.spec.ts > places a desk on an empty non-path tile and draws it` |
+| click on path / occupied / past budget places nothing | `placement.spec.ts > places nothing on a path tile, and nothing once the budget is spent`; occupied case reused from `tests/sim/commands.test.ts > PlaceDesk > is rejected on an occupied tile and mutates no state` |
+| click during a running wave places nothing | `placement.spec.ts > ignores clicks while a wave is running` |
+| click an existing desk removes it and refunds the budget | `placement.spec.ts > removes a desk that is clicked again and returns it to the budget` |
+| HUD uptime equals sim uptime after every wave | `hud.spec.ts > shows the sim's uptime after every wave of a full run` |
+| bug objects in the scene == live bugs in the snapshot | `scene.spec.ts > draws exactly one bug object per live bug` |
+| bug draw calls do not grow with bug count | `instancing.spec.ts > renders 25 bugs in the same number of draw calls as 1` |
+| defeat overlay / victory overlay / restart with a new seed | `overlays.spec.ts > shows the defeat overlay at uptime 0 and restarts into a new run`; `> shows the victory overlay after clearing wave 5 and restarts into a new run` |
+| full 5-wave run, no uncaught exception, no console error | `run.spec.ts > plays a full five-wave run with no uncaught exception and no console error` |
+| catch-up cap (a `Decisions:` ruling, pure, pinned nowhere else) | `tests/game/stepper.test.ts` (2 cases), plus `tests/game/engine-timescale.test.ts` added in review to pin the timeScale fix below |
+| the board reads as an intentional finished diorama | pending human: `docs/ristretto/manual-checks.md` check 1 |
+| placing desks and watching a wave resolve is enjoyable | pending human: `docs/ristretto/manual-checks.md` check 2 |
+
+The first implementer was interrupted mid-work; the orchestrator then debugged the failing e2e
+suite directly, ahead of review. Defects found and fixed across the whole feature:
+
+1. `src/game/stepper.ts` + `src/game/engine.ts` — the fixed-step catch-up cap was applied to
+   time-scaled elapsed, so `timeScale` was silently throttled to ~5 ticks per rendered frame (8x
+   short: a 400-tick target delivered 50). The cap is now a real-time budget
+   (`MAX_CATCHUP_TICKS * timeScale`); behaviour at timeScale 1 is unchanged, so the hidden-tab
+   guard in `tests/game/stepper.test.ts` still passes unmodified. Pinned by the new
+   `tests/game/engine-timescale.test.ts`.
+2. `src/render/entities/Desks.tsx` — the scene resync was gated on desk *count*, so a tick batch
+   holding RemoveDesk(A)+PlaceDesk(B) kept drawing the stale desk permanently. Now keyed on an
+   `id:x:y` signature.
+3. `tests/e2e/placement.spec.ts` — a whole-object desk comparison flaked on `cooldownRemaining`,
+   which legitimately ticks mid-wave; now compares id/role/x/y.
+4. `tests/e2e/hud.spec.ts` — waiting for phase `running` became racy once fast-forward actually
+   worked; now waits for the wave counter to advance or the run to end.
+5. `src/dev/flags.ts` + `src/render/Scene.tsx` — a DEV-only `?fx=off` URL flag skipping
+   post-processing, used by the sim-focused e2e specs. `scene.spec` and `instancing.spec`
+   deliberately keep effects on. Cannot reach a production build
+   (`import.meta.env.DEV` folds to false).
+6. `playwright.config.ts` — root cause of a ~1-in-10 intermittent failure that had survived two
+   review rounds: the Chromium launch flags `--disable-gpu-vsync --disable-frame-rate-limit` let
+   rAF dispatch back-to-back and starve the renderer's ordinary task queue, so React stopped
+   committing (HUD DOM frozen while the sim ran) and Playwright's own evaluates stalled up to
+   5.7s. Measured A/B: uncapped rAF 73-86/s with timers at 2.9-3.7/s and a worst gap of
+   4.2-5.9s (one captured stall hit 28.2s); capped, rAF 8/s, timers 10.0/s, worst gap 129ms.
+   Flags removed. Also `trace` now disables screenshots/snapshots, which the same measurements
+   showed cost the suite 5-8x its frame rate.
+
+Knock-on edits reviewed and accepted: `run.spec.ts`'s `stats.frame > 200` stall floor
+recalibrated to `> 30` for the capped frame rate; `playToEnd`'s Start Sprint click bounded at 2s
+and swallowed (the loop's own deadline remains the failure signal).
+
+Coverage note: no e2e test now fast-forwards a full wave with post-processing mounted, so a
+defect appearing only under DOF/bloom during a long run would be caught by the manual checks
+rather than by the suite.
+
+Reviewer's trailing observation, not a finding: `.ristretto/build/render-diorama.md` still
+transcribes `run.spec.ts` as `openGame(page)` with `frame > 200`; the shipped test is
+`fx: 'off'` with `> 30`.
+
+Manual-Checks: both `[human]` criteria unticked in `docs/ristretto/manual-checks.md` — the board
+reading as an intentional finished diorama, and whether placing desks and watching a wave
+resolve is enjoyable. Neither can be proven by this repo's tooling; both `pending human`.
+
+review: resolved · rounds: 3 · open: 0 block, 0 note, 0 lean
+tier: normal
+
+status: needs-human
