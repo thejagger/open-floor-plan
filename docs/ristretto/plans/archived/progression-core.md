@@ -68,4 +68,75 @@ Destructive removal is a behaviour change to something milestone 1 shipped as ha
 - Depends: balance-harness
 - Parallel-with: —
 
-status: planned
+## Evidence
+
+Gates green on the working tree (feature/brew-2026-09-21): `npm run lint` clean, `npm run
+typecheck` clean, `npm test` (`vitest run && playwright test`) 1m39.8s — 58/58 unit tests (11
+files, including the 21-test `tests/sim/progression.test.ts` and the new determinism case in
+`tests/tools/headless.test.ts`) and 9/9 e2e specs, unchanged per the plan's prediction that
+`tests/e2e/placement.spec.ts` needed no edit.
+
+Criterion -> proof:
+
+| # | Criterion | Proof |
+| --- | --- | --- |
+| 1 | a desk earns the bug's XP for its own kills; a desk that kills nothing earns nothing | `tests/sim/progression.test.ts > XP from kills > credits the killing desk the bug xp in full, and credits a desk that kills nothing nothing` |
+| 2 | a process desk earns `assistFraction` on an aura-enabled kill; nothing with no one in its aura | `> XP from an aura > credits the aura owner assistFraction of every kill its aura enabled` and `> credits a process desk nothing while no other desk stands in its aura` |
+| 3 | a purchase debits the price and raises the level; an unaffordable purchase is rejected with no partial debit | `> BuyLevel > debits the price and raises that path by one` and `> rejects a purchase the desk cannot afford and changes nothing` |
+| 4 | the cross-path cap holds in both directions, 5+2 reachable, never 3+3 | `> the cross-path cap > holds in both directions: past the cap on one path stops the other at the cap` and `> reaches 5 and 2 in either order and never 3 in both, over every purchase order` (BFS over every reachable (craft, process) pair) |
+| 5 | effective damage is `craft.damage * ownDamageMultiplier * bestAuraMultiplier`; range/fire rate are craft-only | `> effective stats > multiplies craft damage by its own process multiplier and the aura, and leaves range and fire rate to craft` — asserted both against `effectiveStats` directly and against the `BugDamaged` event the fire step actually emits |
+| 6 | auras don't stack, ties resolve to the lower entity id, a desk is never buffed by its own aura | `> auras > applies the stronger multiplier rather than the product when two auras overlap`, `> resolves equal multipliers to the lower entity id whichever order the desks are listed`, `> never buffs a desk with its own aura` |
+| 7 | `MoveDesk` relocates and charges `floor(xp * moveCostFraction)`; free at zero XP; invalid/occupied moves rejected; `RemoveDesk` is destructive | `> MoveDesk > relocates the desk and charges floor(xp * moveCostFraction) of its unspent XP`, `> moves a desk with no XP for free`, `> is rejected onto $name and changes nothing` (`it.each`, 4 cases: path tile, off-board, occupied, no-op); `> RemoveDesk > destroys the person: the slot returns, the XP and levels do not` |
+| 8 | `BuyLevel`/`MoveDesk` are inert mid-wave, accepted in the build phase | `> spending while a wave runs > ignores BuyLevel and MoveDesk mid-wave and accepts both in the build phase` |
+| 9 | `lockedPath`/`nextPrice` on the snapshot agree with the cap rule at every reachable level pair | `> the snapshot cap fields > offers a price exactly where a purchase is accepted, at every reachable level pair` — exhaustive over every `(craft, process)` pair up to the ladder top |
+| 10 | determinism holds with progression active | `tests/tools/headless.test.ts > a headless run > replays a run that spends XP into a byte-identical event stream` — same seed, `'craft'` vs `'process'` vs `'none'` spend policies diverge, repeat runs match |
+
+The title rule (a `Decisions:` ruling, not a separate acceptance criterion) is proven by
+`tests/sim/progression.test.ts > titleOf > names the deeper path, craft on a tie, and nothing at
+all for a blank hire`, asserted against `TABLE.titles` rather than literal strings.
+
+`Provides:` matches what was built exactly — no correction needed. `src/sim/index.ts` re-exports
+five extra progression functions (`bestAura`, `auraOf`, `lockedPathOf`, `statsWithAura`, plus
+`nextPriceFor`) beyond the four `Provides:` names; that drift is recorded as a lean finding below,
+not corrected here since nothing outside `src/sim` imports the extras today.
+
+Implementer correction to the build plan's own test fixture, confirmed independently by the
+reviewer: the "XP from an aura" test uses `grant()`, which sets every desk's starting xp to 100
+before the wave plays, so the killer's xp at the assertion point is `100 + 24`, not `24`. The
+build plan's listed assertion (`expect(run.desks[0].xp).toBe(24)`) would have been red against a
+correct implementation; the shipped test reads `expect(run.desks[0].xp).toBe(started.desks[0].xp +
+24)` (`tests/sim/progression.test.ts:91`) and still discriminates a mis-attributed kill credit.
+
+Review notes not acted on by this close (non-blocking, left for the historical record):
+- `tools/balance.ts:101` — the new `PROGRESSION_GRID` sweep (4 configs x 4 layouts x 10 seeds =
+  160 extra full headless runs, ~50% on top of the existing 320) runs on every `npm run balance`,
+  which `tests/tools/balance.test.ts:106` spawns as a gate, but nothing asserts its report: the
+  regex at `balance.test.ts:127` matches only the first `wrote` line, so emptying the grid or
+  breaking the second write leaves the suite green while the gate keeps paying. No user harm — the
+  sweep is a developer artefact and no shipped code reads it. Suggested fix: assert the
+  progression report (cell count, both spend axes, finite metrics) or gate it behind an env flag.
+- `tests/sim/progression.test.ts:324` — the "slot returns to the budget" half of the `RemoveDesk`
+  criterion is vacuous here: `deskBudget` is 3 and the test never holds more than one desk, so the
+  re-place succeeds whether or not the slot returned. No user harm — `tests/sim/commands.test.ts:
+  21-29` already proves the budget return at a full budget. Suggested fix: cite that test and drop
+  lines 324-325.
+- `tests/sim/progression.test.ts:323` — `JSON.stringify(rehired.desks).not.toContain('"craft":2')`
+  narrows "do not survive anywhere in the run state" to the desk array. No user harm — nothing
+  outside `desks` stores per-desk xp or levels. Suggested fix: stringify `rehired`.
+- `tests/sim/progression.test.ts:143` — "holds in both directions" is fully subsumed by the BFS at
+  :151, which already asserts (5,2) and (2,5) reachable and no state with both paths above the
+  cap. Suggested fix: drop it.
+- `src/sim/index.ts:15` — `bestAura`, `auraOf`, `lockedPathOf`, `statsWithAura` and `priceOf` are
+  re-exported from the barrel, but nothing outside `src/sim` imports any of them — tests and
+  `tools/headless.ts` import `src/sim/progression` directly. Suggested fix: trim to the four the
+  plan's `Provides:` names.
+- `src/sim/sim.ts:118-119` — `canBuy` computes the price and discards it, then `nextPriceFor`
+  recomputes it with a `!`. Suggested fix: `const price = nextPriceFor(desk, command.path,
+  next.progression); if (price === null || desk.xp < price) continue;`.
+- `tests/sim/progression.test.ts:325` — `snapshot(rehired).deskBudget === placed.deskBudget` can
+  never be red — no command mutates `run.deskBudget`. Suggested fix: drop it.
+
+review: notes-only · rounds: 1 · open: 0 block, 3 note, 4 lean
+tier: normal
+
+status: done
