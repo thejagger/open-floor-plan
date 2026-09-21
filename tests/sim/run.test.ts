@@ -1,13 +1,11 @@
 import { describe, expect, it, vi } from 'vitest';
 import { createRun, tick } from '../../src/sim/sim';
 import { snapshot } from '../../src/sim/snapshot';
-import { MILESTONE_1_BOARD } from '../../src/content/board';
-import { MILESTONE_1_WAVES } from '../../src/content/waves';
-import { MILESTONE_1_RUN } from '../../src/content/run';
+import { DEFAULT_RUN_CONFIG, MILESTONE_1_RUN } from '../../src/content/run';
 import { DEVELOPER } from '../../src/content/roles';
-import { advance, allEvents, autoSprint, bugStats, record, straightBoard, terminal, wave } from '../helpers/sim';
+import { advance, allEvents, autoSprint, bugStats, record, runConfig, straightBoard, terminal, wave } from '../helpers/sim';
 import type { Command } from '../../src/sim/commands';
-import type { RunState } from '../../src/sim/sim';
+import type { RunConfig, RunState } from '../../src/sim/sim';
 
 const LAYOUT: Command[] = [
   { type: 'PlaceDesk', x: 3, y: 0 },
@@ -20,7 +18,7 @@ const scripted = (r: RunState): Command[] =>
 
 function play(seed: number) {
   const { run, frames } = record(
-    createRun(MILESTONE_1_BOARD, MILESTONE_1_WAVES, seed),
+    createRun(DEFAULT_RUN_CONFIG, seed),
     terminal,
     scripted,
   );
@@ -42,7 +40,7 @@ describe('determinism', () => {
   });
 
   it('advances by N ticks identically however much wall-clock time passes between calls', async () => {
-    const start = createRun(MILESTONE_1_BOARD, MILESTONE_1_WAVES, 99);
+    const start = createRun(DEFAULT_RUN_CONFIG, 99);
     const oneGo = advance(start, 400, [{ type: 'StartSprint' }]);
 
     vi.useFakeTimers();
@@ -68,10 +66,45 @@ describe('determinism', () => {
   });
 });
 
+describe('a run built from a non-default config', () => {
+  it('takes role stats and run rules from the config, not from the content defaults', () => {
+    const config: RunConfig = {
+      board: straightBoard(12),
+      waves: [wave(1, { bug: bugStats({ hp: 5, speed: 1 }) })],
+      rules: { startingUptime: 7, deskBudget: 1, defaultRole: 'intern' },
+      roles: { intern: { role: 'intern', damage: 5, range: 2.5, cooldownTicks: 10 } },
+    };
+    // the content defaults could not produce either half of this run
+    expect(DEFAULT_RUN_CONFIG.rules.startingUptime).not.toBe(7);
+    expect(DEVELOPER.damage).toBeLessThan(5);
+
+    const run0 = createRun(config, 3);
+    expect(run0.uptime).toBe(7);
+    expect(run0.maxUptime).toBe(7);
+    expect(run0.deskBudget).toBe(1);
+
+    const started = tick(run0, [
+      { type: 'PlaceDesk', x: 6, y: 0 },
+      { type: 'StartSprint' },
+    ]).run;
+    expect(started.desks[0]).toMatchObject({ role: 'intern', damage: 5, range: 2.5 });
+
+    const { run, frames } = record(started, (r) => r.phase !== 'running');
+    const events = allEvents(frames);
+    const damaged = events.filter((e) => e.type === 'BugDamaged');
+
+    expect(damaged).toHaveLength(1); // one shot, not five
+    expect(damaged[0]).toMatchObject({ damage: 5, hpRemaining: 0 });
+    expect(events.filter((e) => e.type === 'BugKilled')).toHaveLength(1);
+    expect(events.filter((e) => e.type === 'BugLeaked')).toHaveLength(0);
+    expect(run.uptime).toBe(7);
+  });
+});
+
 describe('uptime', () => {
   it('never increases at any point in a run', () => {
     const { frames } = record(
-      createRun(MILESTONE_1_BOARD, MILESTONE_1_WAVES, 21),
+      createRun(DEFAULT_RUN_CONFIG, 21),
       terminal,
       autoSprint, // no desks: every Typo leaks
     );
@@ -90,7 +123,7 @@ describe('the end of a run', () => {
   it('enters defeat at uptime 0, reports it once, and starts no further wave', () => {
     const fatal = bugStats({ hp: 1, speed: 2, leakCost: MILESTONE_1_RUN.startingUptime });
     const ladder = [wave(2, { bug: fatal }), wave(1), wave(1), wave(1), wave(1)];
-    const started = tick(createRun(straightBoard(6), ladder, 8), [{ type: 'StartSprint' }]).run;
+    const started = tick(createRun(runConfig(straightBoard(6), ladder), 8), [{ type: 'StartSprint' }]).run;
 
     const { run, frames } = record(started, terminal);
     const events = allEvents(frames);
@@ -117,7 +150,7 @@ describe('the end of a run', () => {
     expect(DEVELOPER.damage).toBeGreaterThanOrEqual(1);
 
     const ladder = Array.from({ length: 5 }, () => wave(1, { bug: bugStats({ hp: 1, speed: 1 }) }));
-    const run0 = createRun(straightBoard(12), ladder, 7);
+    const run0 = createRun(runConfig(straightBoard(12), ladder), 7);
     const { run, frames } = record(run0, terminal, (r) =>
       r.phase !== 'build' ? [] : [...(r.desks.length === 0 ? [{ type: 'PlaceDesk', x: 4, y: 0 } as Command] : []), { type: 'StartSprint' }],
     );

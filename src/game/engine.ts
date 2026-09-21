@@ -1,7 +1,6 @@
 import { createRun, snapshot, tick } from '../sim';
 import type { Command, EntityId, Snapshot, SimEvent } from '../sim';
-import { MILESTONE_1_BOARD } from '../content/board';
-import { MILESTONE_1_WAVES } from '../content/waves';
+import { DEFAULT_RUN_CONFIG } from '../content/run';
 import { MAX_CATCHUP_TICKS, stepsFor, TICK_MS } from './stepper';
 
 export type Engine = {
@@ -21,7 +20,7 @@ export type Engine = {
 };
 
 export function createEngine(seed: number): Engine {
-  let run = createRun(MILESTONE_1_BOARD, MILESTONE_1_WAVES, seed);
+  let run = createRun(DEFAULT_RUN_CONFIG, seed);
   const initial = snapshot(run);
   let pending: Command[] = [];
   let accumulator = 0;

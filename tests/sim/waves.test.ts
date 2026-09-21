@@ -1,12 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import { createRun, tick } from '../../src/sim/sim';
-import { allEvents, bugStats, record, straightBoard, wave } from '../helpers/sim';
+import { allEvents, bugStats, record, runConfig, straightBoard, wave } from '../helpers/sim';
 
 describe('a bug that reaches Production', () => {
   it('emits BugLeaked and UptimeLost and costs exactly its leak cost', () => {
     const run0 = createRun(
-      straightBoard(4),
-      [wave(1, { bug: bugStats({ hp: 1, speed: 3, leakCost: 3 }) }), wave(1)],
+      runConfig(straightBoard(4), [wave(1, { bug: bugStats({ hp: 1, speed: 3, leakCost: 3 }) }), wave(1)]),
       11,
     );
     const startingUptime = run0.uptime;
@@ -35,7 +34,7 @@ describe('a wave', () => {
       bug: bugStats({ hp: 1, speed: 2, leakCost: 0 }),
       spawnIntervalTicks: 60,
     });
-    const run0 = createRun(straightBoard(3), [swarm, swarm], 2);
+    const run0 = createRun(runConfig(straightBoard(3), [swarm, swarm]), 2);
     // The wave advances in the same tick as StartSprint, so the first bug can spawn
     // immediately — capture that tick's events too, not just the ones `record` sees after.
     const first = tick(run0, [{ type: 'StartSprint' }]);

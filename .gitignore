@@ -26,3 +26,6 @@ src/**/__boundary_probe__.ts
 
 test-results/
 playwright-report/
+
+# balance sweep reports
+.balance/

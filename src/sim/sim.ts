@@ -4,25 +4,39 @@ import { selectTarget } from './combat';
 import type { Positioned } from './combat';
 import type { Command } from './commands';
 import { createBug, createDesk } from './entities';
-import type { Bug, Desk, EntityId } from './entities';
+import type { Bug, Desk, DeskStats, EntityId } from './entities';
 import type { SimEvent } from './events';
 import { createRng } from './rng';
 import type { RngState } from './rng';
 import { buildSchedule } from './waves';
 import type { WaveDef } from './waves';
-import { DEVELOPER } from '../content/roles';
-import { MILESTONE_1_RUN } from '../content/run';
 
 export const TICK_RATE = 20;
 
 export type Phase = 'build' | 'running' | 'victory' | 'defeat';
-export type RunRules = { startingUptime: number; deskBudget: number };
+
+export type RunRules = {
+  startingUptime: number;
+  deskBudget: number;
+  /** Key into `RunConfig.roles` — the role a `PlaceDesk` hires. Hiring a *choice* of role is a
+   *  milestone-3 non-goal, so the run's rules name one and `tick` looks it up. */
+  defaultRole: string;
+};
+
+export type RunConfig = {
+  board: BoardDef;
+  waves: WaveDef[];
+  rules: RunRules;
+  roles: Record<string, DeskStats>;
+};
 
 export type WaveRuntime = { schedule: number[]; spawned: number; waveTick: number };
 
 export type RunState = {
   board: BoardDef;
   waves: WaveDef[];
+  roles: Record<string, DeskStats>;
+  defaultRole: string;
   rngState: RngState;
   tick: number;
   phase: Phase;
@@ -36,17 +50,19 @@ export type RunState = {
   wave: WaveRuntime | null;
 };
 
-export function createRun(board: BoardDef, waves: WaveDef[], seed: number): RunState {
+export function createRun(config: RunConfig, seed: number): RunState {
   return {
-    board,
-    waves,
+    board: config.board,
+    waves: config.waves,
+    roles: config.roles,
+    defaultRole: config.rules.defaultRole,
     rngState: createRng(seed),
     tick: 0,
     phase: 'build',
     currentWave: 0,
-    uptime: MILESTONE_1_RUN.startingUptime,
-    maxUptime: MILESTONE_1_RUN.startingUptime,
-    deskBudget: MILESTONE_1_RUN.deskBudget,
+    uptime: config.rules.startingUptime,
+    maxUptime: config.rules.startingUptime,
+    deskBudget: config.rules.deskBudget,
     nextEntityId: 1,
     desks: [],
     bugs: [],
@@ -81,7 +97,9 @@ export function tick(run: RunState, commands: Command[]): { run: RunState; event
         const occupied = next.desks.map((d) => ({ x: d.x, y: d.y }));
         if (next.desks.length >= next.deskBudget) continue;
         if (placementError(next.board, occupied, command.x, command.y) !== null) continue;
-        next.desks.push(createDesk(next.nextEntityId, { x: command.x, y: command.y }, DEVELOPER));
+        next.desks.push(
+          createDesk(next.nextEntityId, { x: command.x, y: command.y }, next.roles[next.defaultRole]),
+        );
         next.nextEntityId += 1;
       } else if (command.type === 'RemoveDesk') {
         next.desks = next.desks.filter((d) => d.id !== command.deskId);

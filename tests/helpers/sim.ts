@@ -1,12 +1,14 @@
 import { tick } from '../../src/sim/sim';
 import { snapshot } from '../../src/sim/snapshot';
-import type { RunState } from '../../src/sim/sim';
+import type { RunConfig, RunState } from '../../src/sim/sim';
 import type { Snapshot } from '../../src/sim/snapshot';
 import type { Command } from '../../src/sim/commands';
 import type { SimEvent } from '../../src/sim/events';
 import type { BoardDef, Tile } from '../../src/sim/board';
 import type { BugStats } from '../../src/sim/entities';
 import type { WaveDef } from '../../src/sim/waves';
+import { DEVELOPER } from '../../src/content/roles';
+import { MILESTONE_1_RUN } from '../../src/content/run';
 
 export const MAX_TEST_TICKS = 20_000;
 
@@ -29,6 +31,21 @@ export function wave(count: number, overrides: Partial<WaveDef> = {}): WaveDef {
     count,
     spawnIntervalTicks: 10,
     spawnJitterTicks: 0,
+    ...overrides,
+  };
+}
+
+/** The default config with a test board and ladder swapped in. */
+export function runConfig(
+  board: BoardDef,
+  waves: WaveDef[],
+  overrides: Partial<RunConfig> = {},
+): RunConfig {
+  return {
+    board,
+    waves,
+    rules: MILESTONE_1_RUN,
+    roles: { [DEVELOPER.role]: DEVELOPER },
     ...overrides,
   };
 }

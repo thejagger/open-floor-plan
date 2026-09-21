@@ -12,10 +12,10 @@ const RENDERER_FREE = ['three', '@react-three/fiber', '../render/Stage', '../ui/
 /**
  * One probe per renderer-free root, each carrying the specifiers *that* root must refuse. The
  * list is per-probe rather than shared because the roots do not ban the same set: a rule that
- * bans `../content` from `src/sim` must leave `src/content` importing its own siblings.
+ * bans `../content` from `src/sim` leaves `src/content` importing its own siblings.
  */
 export const PROBES: { path: string; banned: string[] }[] = [
-  { path: 'src/sim/__boundary_probe__.ts', banned: RENDERER_FREE },
+  { path: 'src/sim/__boundary_probe__.ts', banned: [...RENDERER_FREE, '../content/roles'] },
   { path: 'src/content/__boundary_probe__.ts', banned: RENDERER_FREE },
 ];
 
@@ -53,7 +53,7 @@ describe('the renderer-free boundary', () => {
     for (const { path } of PROBES) rmSync(resolve(ROOT, path), { force: true });
   });
 
-  it.each(PROBES)('npm run lint fails when $path imports the render layer', ({ path, banned }) => {
+  it.each(PROBES)('npm run lint fails when $path imports what it must not', ({ path, banned }) => {
     expect(status).not.toBe(0);
 
     const reported = reportFor(output, path);

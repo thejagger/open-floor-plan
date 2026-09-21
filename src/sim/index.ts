@@ -1,5 +1,5 @@
 export { createRun, tick, TICK_RATE } from './sim';
-export type { RunState, RunRules, Phase } from './sim';
+export type { RunState, RunConfig, RunRules, Phase } from './sim';
 export { snapshot } from './snapshot';
 export type { Snapshot, SnapshotBug, SnapshotDesk } from './snapshot';
 export type { Command, PlaceDesk, RemoveDesk, StartSprint } from './commands';

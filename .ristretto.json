@@ -26,6 +26,11 @@
         "cmd": "npx vitest related --run {files}"
       },
       {
+        "name": "tools",
+        "match": ["tools/**"],
+        "cmd": "npx vitest related --run {files}"
+      },
+      {
         "name": "render",
         "match": ["src/render/**", "src/ui/**", "src/store/**", "src/dev/**", "src/*.ts", "src/*.tsx", "src/*.css"],
         "cmd": "npx playwright test"

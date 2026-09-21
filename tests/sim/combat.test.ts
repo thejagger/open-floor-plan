@@ -3,7 +3,7 @@ import { createRun, tick } from '../../src/sim/sim';
 import { selectTarget } from '../../src/sim/combat';
 import { createBug, createDesk } from '../../src/sim/entities';
 import { DEVELOPER } from '../../src/content/roles';
-import { allEvents, bugStats, record, straightBoard, wave } from '../helpers/sim';
+import { allEvents, bugStats, record, runConfig, straightBoard, wave } from '../helpers/sim';
 import type { Snapshot } from '../../src/sim/snapshot';
 
 const gap = (s: Snapshot) => Math.hypot(s.bugs[0].x - s.desks[0].x, s.bugs[0].y - s.desks[0].y);
@@ -12,7 +12,7 @@ describe('a desk out of range', () => {
   it('never fires and never damages a bug that walks past', () => {
     expect(DEVELOPER.range).toBeLessThan(7); // the fixture parks the desk 7 tiles off the path
 
-    const run0 = createRun(straightBoard(12, 9), [wave(1, { bug: bugStats({ hp: 100 }) })], 3);
+    const run0 = createRun(runConfig(straightBoard(12, 9), [wave(1, { bug: bugStats({ hp: 100 }) })]), 3);
     const started = tick(run0, [{ type: 'PlaceDesk', x: 5, y: 8 }, { type: 'StartSprint' }]).run;
     expect(started.desks).toHaveLength(1);
 
@@ -29,8 +29,7 @@ describe('a desk out of range', () => {
 describe('a desk in range', () => {
   it('fires on the first tick the bug is reachable, then once per cooldown', () => {
     const run0 = createRun(
-      straightBoard(20),
-      [wave(1, { bug: bugStats({ hp: 10_000, speed: 1 }) })],
+      runConfig(straightBoard(20), [wave(1, { bug: bugStats({ hp: 10_000, speed: 1 }) })]),
       5,
     );
     const started = tick(run0, [{ type: 'PlaceDesk', x: 9, y: 0 }, { type: 'StartSprint' }]).run;
@@ -54,8 +53,7 @@ describe('a desk in range', () => {
 describe('targeting', () => {
   it('shoots the bug furthest along the path while two are in range', () => {
     const run0 = createRun(
-      straightBoard(20),
-      [wave(2, { bug: bugStats({ hp: 10_000, speed: 1 }), spawnIntervalTicks: 20 })],
+      runConfig(straightBoard(20), [wave(2, { bug: bugStats({ hp: 10_000, speed: 1 }), spawnIntervalTicks: 20 })]),
       6,
     );
     const started = tick(run0, [{ type: 'PlaceDesk', x: 9, y: 0 }, { type: 'StartSprint' }]).run;
