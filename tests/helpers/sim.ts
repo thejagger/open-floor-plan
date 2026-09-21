@@ -9,6 +9,7 @@ import type { BugStats } from '../../src/sim/entities';
 import type { WaveDef } from '../../src/sim/waves';
 import { DEVELOPER } from '../../src/content/roles';
 import { MILESTONE_1_RUN } from '../../src/content/run';
+import { MILESTONE_2_PROGRESSION } from '../../src/content/progression';
 
 export const MAX_TEST_TICKS = 20_000;
 
@@ -22,7 +23,7 @@ export function straightBoard(length: number, height = 3): BoardDef {
 }
 
 export function bugStats(overrides: Partial<BugStats> = {}): BugStats {
-  return { type: 'test-bug', hp: 1, speed: 1, leakCost: 1, ...overrides };
+  return { type: 'test-bug', hp: 1, speed: 1, leakCost: 1, xp: 1, ...overrides };
 }
 
 export function wave(count: number, overrides: Partial<WaveDef> = {}): WaveDef {
@@ -46,6 +47,7 @@ export function runConfig(
     waves,
     rules: MILESTONE_1_RUN,
     roles: { [DEVELOPER.role]: DEVELOPER },
+    progression: MILESTONE_2_PROGRESSION,
     ...overrides,
   };
 }

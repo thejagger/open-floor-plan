@@ -6,6 +6,8 @@ import type { Command } from './commands';
 import { createBug, createDesk } from './entities';
 import type { Bug, Desk, DeskStats, EntityId } from './entities';
 import type { SimEvent } from './events';
+import { bestAura, canBuy, nextPriceFor, statsWithAura, titleOf } from './progression';
+import type { ProgressionTable } from './progression';
 import { createRng } from './rng';
 import type { RngState } from './rng';
 import { buildSchedule } from './waves';
@@ -28,6 +30,7 @@ export type RunConfig = {
   waves: WaveDef[];
   rules: RunRules;
   roles: Record<string, DeskStats>;
+  progression: ProgressionTable;
 };
 
 export type WaveRuntime = { schedule: number[]; spawned: number; waveTick: number };
@@ -37,6 +40,7 @@ export type RunState = {
   waves: WaveDef[];
   roles: Record<string, DeskStats>;
   defaultRole: string;
+  progression: ProgressionTable;
   rngState: RngState;
   tick: number;
   phase: Phase;
@@ -56,6 +60,7 @@ export function createRun(config: RunConfig, seed: number): RunState {
     waves: config.waves,
     roles: config.roles,
     defaultRole: config.rules.defaultRole,
+    progression: config.progression,
     rngState: createRng(seed),
     tick: 0,
     phase: 'build',
@@ -102,7 +107,36 @@ export function tick(run: RunState, commands: Command[]): { run: RunState; event
         );
         next.nextEntityId += 1;
       } else if (command.type === 'RemoveDesk') {
+        const desk = next.desks.find((d) => d.id === command.deskId);
+        if (!desk) continue;
         next.desks = next.desks.filter((d) => d.id !== command.deskId);
+        // Destructive by design: without it, remove-then-place is a free move and MoveDesk's XP
+        // cost is decoration. The slot returns to the budget; the person does not.
+        events.push({ type: 'DeskRemoved', deskId: desk.id, xpLost: desk.xp });
+      } else if (command.type === 'BuyLevel') {
+        const desk = next.desks.find((d) => d.id === command.deskId);
+        if (!desk || !canBuy(desk, command.path, next.progression)) continue;
+        desk.xp -= nextPriceFor(desk, command.path, next.progression)!;
+        desk[command.path] += 1;
+        events.push({
+          type: 'LevelUp',
+          deskId: desk.id,
+          path: command.path,
+          level: desk[command.path],
+          title: titleOf(desk, next.progression),
+        });
+      } else if (command.type === 'MoveDesk') {
+        const desk = next.desks.find((d) => d.id === command.deskId);
+        if (!desk) continue;
+        // `occupied` includes the mover, so a move onto its own tile reads as 'occupied' and is
+        // refused — a no-op click must not charge XP.
+        const occupied = next.desks.map((d) => ({ x: d.x, y: d.y }));
+        if (placementError(next.board, occupied, command.x, command.y) !== null) continue;
+        const spent = Math.floor(desk.xp * next.progression.moveCostFraction);
+        desk.x = command.x;
+        desk.y = command.y;
+        desk.xp -= spent;
+        events.push({ type: 'DeskMoved', deskId: desk.id, x: desk.x, y: desk.y, xpSpent: spent });
       }
     }
   }
@@ -155,16 +189,33 @@ export function tick(run: RunState, commands: Command[]): { run: RunState; event
     for (const desk of next.desks) {
       desk.cooldownRemaining = Math.max(0, desk.cooldownRemaining - 1);
       if (desk.cooldownRemaining > 0) continue;
+      // Derived here, once per firing desk per tick, and thrown away: the aura is a relationship
+      // between desks, not a property of one, and storing it would make firing order matter.
+      const aura = bestAura(desk, next.desks, next.progression);
+      const stats = statsWithAura(desk, aura, next.progression);
       const candidates: Positioned[] = next.bugs.map((bug) => ({ bug, ...positions.get(bug.id)! }));
-      const target = selectTarget(desk, candidates);
+      const target = selectTarget({ x: desk.x, y: desk.y, range: stats.range }, candidates);
       if (!target) continue;
-      events.push({ type: 'DeskFired', deskId: desk.id, targetId: target.id, damage: desk.damage });
-      target.hp -= desk.damage;
-      events.push({ type: 'BugDamaged', bugId: target.id, deskId: desk.id, damage: desk.damage, hpRemaining: target.hp });
-      desk.cooldownRemaining = desk.cooldownTicks;
+      events.push({ type: 'DeskFired', deskId: desk.id, targetId: target.id, damage: stats.damage });
+      target.hp -= stats.damage;
+      events.push({ type: 'BugDamaged', bugId: target.id, deskId: desk.id, damage: stats.damage, hpRemaining: target.hp });
+      desk.cooldownRemaining = stats.cooldownTicks;
       if (target.hp <= 0) {
         events.push({ type: 'BugKilled', bugId: target.id, deskId: desk.id });
         next.bugs = next.bugs.filter((b) => b.id !== target.id);
+
+        desk.xp += target.xp;
+        events.push({ type: 'XpGained', deskId: desk.id, amount: target.xp, total: desk.xp, source: 'kill' });
+
+        // The assist goes to whoever's aura was applied to *this* killer on *this* tick — the
+        // same `aura` the damage used, so a process desk with nobody in range is literally
+        // credited nothing.
+        if (aura) {
+          const mentor = next.desks.find((d) => d.id === aura.deskId)!;
+          const amount = target.xp * next.progression.assistFraction;
+          mentor.xp += amount;
+          events.push({ type: 'XpGained', deskId: mentor.id, amount, total: mentor.xp, source: 'assist' });
+        }
       }
     }
 

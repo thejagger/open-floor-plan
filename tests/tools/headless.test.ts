@@ -42,4 +42,17 @@ describe('a headless run', () => {
     expect(outcome.uptimeRemaining).toBe(DEFAULT_RUN_CONFIG.rules.startingUptime - lost);
     expect(outcome.waves[outcome.waves.length - 1].uptimeRemaining).toBe(outcome.uptimeRemaining);
   });
+
+  it('replays a run that spends XP into a byte-identical event stream', () => {
+    const first = runHeadless(DEFAULT_RUN_CONFIG, 1234, SPREAD, 'craft');
+    const second = runHeadless(DEFAULT_RUN_CONFIG, 1234, SPREAD, 'craft');
+    const process = runHeadless(DEFAULT_RUN_CONFIG, 1234, SPREAD, 'process');
+    const idle = runHeadless(DEFAULT_RUN_CONFIG, 1234, SPREAD, 'none');
+
+    expect(second.eventHash).toBe(first.eventHash);
+    expect(second).toEqual(first);
+    // progression is actually active: the same config and seed diverge on how the XP was spent
+    expect(first.eventHash).not.toBe(idle.eventHash);
+    expect(process.eventHash).not.toBe(first.eventHash);
+  });
 });

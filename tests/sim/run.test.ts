@@ -73,6 +73,7 @@ describe('a run built from a non-default config', () => {
       waves: [wave(1, { bug: bugStats({ hp: 5, speed: 1 }) })],
       rules: { startingUptime: 7, deskBudget: 1, defaultRole: 'intern' },
       roles: { intern: { role: 'intern', damage: 5, range: 2.5, cooldownTicks: 10 } },
+      progression: DEFAULT_RUN_CONFIG.progression,
     };
     // the content defaults could not produce either half of this run
     expect(DEFAULT_RUN_CONFIG.rules.startingUptime).not.toBe(7);

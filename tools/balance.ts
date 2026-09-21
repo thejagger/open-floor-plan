@@ -4,8 +4,10 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 import { sweep } from './sweep';
 import { DEFAULT_RUN_CONFIG } from '../src/content/run';
 import { TYPO } from '../src/content/bugs';
+import { MILESTONE_2_PROGRESSION } from '../src/content/progression';
 import type { BalanceConfig, BalanceReport } from './sweep';
 import type { WaveDef } from '../src/sim/waves';
+import type { Path, ProgressionTable } from '../src/content/progression';
 
 const ROOT = fileURLToPath(new URL('..', import.meta.url));
 
@@ -39,6 +41,26 @@ export const BALANCE_GRID: BalanceConfig[] = RUN_LENGTHS.flatMap((run) =>
   })),
 );
 
+/** Half the seeds of the main grid: this axis answers "do prices and curves move the numbers",
+ *  which does not need the main grid's resolution, and the CLI is spawned by a gate. */
+export const PROGRESSION_SEEDS = SWEEP_SEEDS.slice(0, 10);
+
+const repriced = (factor: number): ProgressionTable => ({
+  ...MILESTONE_2_PROGRESSION,
+  craft: MILESTONE_2_PROGRESSION.craft.map((l) => ({ ...l, price: Math.round(l.price * factor) })),
+  process: MILESTONE_2_PROGRESSION.process.map((l) => ({ ...l, price: Math.round(l.price * factor) })),
+});
+
+/** The price table on one axis, the two stat curves on the other: a craft player exercises the
+ *  craft curve, a process player the aura curve. */
+export const PROGRESSION_GRID: BalanceConfig[] = (['craft', 'process'] as const).flatMap((spend: Path) =>
+  [{ name: 'cheap', factor: 0.5 }, { name: 'dear', factor: 2 }].map((price) => ({
+    name: `${price.name}/${spend}`,
+    config: { ...DEFAULT_RUN_CONFIG, progression: repriced(price.factor) },
+    spend,
+  })),
+);
+
 type BalanceReportCell = BalanceReport['cells'][number];
 
 function formatTable(report: BalanceReport): string[] {
@@ -62,14 +84,23 @@ function formatTable(report: BalanceReport): string[] {
   return [header, ...rows];
 }
 
+function write(dir: string, prefix: string, report: BalanceReport): string {
+  const path = resolve(dir, `${prefix}-${new Date().toISOString().replaceAll(/[:.]/g, '-')}.json`);
+  writeFileSync(path, `${JSON.stringify(report, null, 2)}\n`, 'utf8');
+  return path;
+}
+
 export function main(log: (line: string) => void = console.log): string {
   const report = sweep(BALANCE_GRID, SWEEP_SEEDS);
   for (const line of formatTable(report)) log(line);
   const dir = resolve(ROOT, process.env.BALANCE_OUT ?? DEFAULT_OUT_DIR);
   mkdirSync(dir, { recursive: true });
-  const path = resolve(dir, `balance-${new Date().toISOString().replaceAll(/[:.]/g, '-')}.json`);
-  writeFileSync(path, `${JSON.stringify(report, null, 2)}\n`, 'utf8');
+  const path = write(dir, 'balance', report);
   log(`wrote ${path}`);
+
+  const progression = sweep(PROGRESSION_GRID, PROGRESSION_SEEDS);
+  for (const line of formatTable(progression)) log(line);
+  log(`wrote ${write(dir, 'progression', progression)}`);
   return path;
 }
 

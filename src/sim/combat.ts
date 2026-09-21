@@ -1,17 +1,18 @@
-import type { Bug, Desk } from './entities';
+import type { Bug } from './entities';
 
 export type Positioned = { bug: Bug; x: number; y: number };
+export type Origin = { x: number; y: number; range: number };
 
-/** Euclidean distance in tile units from the desk's tile centre. */
-export function inRange(desk: Desk, x: number, y: number): boolean {
-  return Math.hypot(x - desk.x, y - desk.y) <= desk.range;
+/** Euclidean distance in tile units from the origin's tile centre. */
+export function inRange(origin: Origin, x: number, y: number): boolean {
+  return Math.hypot(x - origin.x, y - origin.y) <= origin.range;
 }
 
 /** The in-range bug furthest along the path; ties resolve to the lowest entity id. */
-export function selectTarget(desk: Desk, candidates: readonly Positioned[]): Bug | null {
+export function selectTarget(origin: Origin, candidates: readonly Positioned[]): Bug | null {
   let best: Positioned | null = null;
   for (const candidate of candidates) {
-    if (!inRange(desk, candidate.x, candidate.y)) continue;
+    if (!inRange(origin, candidate.x, candidate.y)) continue;
     if (
       best === null ||
       candidate.bug.distance > best.bug.distance ||

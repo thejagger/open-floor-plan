@@ -1,9 +1,9 @@
 import { runHeadless } from './headless';
 import { LAYOUT_AXIS } from './layouts';
-import type { RunOutcome } from './headless';
+import type { RunOutcome, SpendPolicy } from './headless';
 import type { RunConfig } from '../src/sim/sim';
 
-export type BalanceConfig = { name: string; config: RunConfig };
+export type BalanceConfig = { name: string; config: RunConfig; spend?: SpendPolicy };
 
 export type Distribution = { min: number; p10: number; median: number; max: number };
 
@@ -58,9 +58,11 @@ function cell(config: string, layout: string, outcomes: RunOutcome[]): CellRepor
 
 export function sweep(configs: BalanceConfig[], seeds: number[]): BalanceReport {
   const cells: CellReport[] = [];
-  for (const { name, config } of configs) {
+  for (const { name, config, spend } of configs) {
     for (const layout of LAYOUT_AXIS) {
-      const outcomes = seeds.map((seed) => runHeadless(config, seed, layout.tilesFor(config, seed)));
+      const outcomes = seeds.map((seed) =>
+        runHeadless(config, seed, layout.tilesFor(config, seed), spend ?? 'none'),
+      );
       cells.push(cell(name, layout.name, outcomes));
     }
   }

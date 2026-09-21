@@ -27,6 +27,7 @@ const rigged = (
     waves: DEFAULT_RUN_CONFIG.waves,
     rules: { startingUptime, deskBudget: 3, defaultRole: 'developer' },
     roles: { developer: role },
+    progression: DEFAULT_RUN_CONFIG.progression,
   },
 });
 

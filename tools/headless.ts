@@ -1,9 +1,31 @@
 import { createHash } from 'node:crypto';
 import { createRun, tick, TICK_RATE } from '../src/sim/sim';
-import type { RunConfig } from '../src/sim/sim';
+import type { RunConfig, RunState } from '../src/sim/sim';
 import type { Tile } from '../src/sim/board';
 import type { Command } from '../src/sim/commands';
+import type { Desk } from '../src/sim/entities';
 import type { SimEvent } from '../src/sim/events';
+import { canBuy, nextPriceFor } from '../src/sim/progression';
+import type { Path, ProgressionTable } from '../src/sim/progression';
+
+/** Which path the scripted player pours XP into. `'none'` is the milestone-1 player. */
+export type SpendPolicy = 'none' | Path;
+
+/** Every level this desk can afford right now, greedily, in one batch: the sim applies a batch in
+ *  order, so the driver advances its own copy of (xp, level) to know how far the run of purchases
+ *  goes. The legality rule itself is never restated — `canBuy` and `nextPriceFor` are asked. */
+function buysFor(desk: Desk, path: Path, table: ProgressionTable): Command[] {
+  const out: Command[] = [];
+  let probe = desk;
+  while (canBuy(probe, path, table)) {
+    probe = { ...probe, xp: probe.xp - nextPriceFor(probe, path, table)!, [path]: probe[path] + 1 };
+    out.push({ type: 'BuyLevel', deskId: desk.id, path });
+  }
+  return out;
+}
+
+const buys = (run: RunState, spend: SpendPolicy): Command[] =>
+  spend === 'none' ? [] : run.desks.flatMap((d) => buysFor(d, spend, run.progression));
 
 /** A config that has not reached victory or defeat by here is malformed, not merely slow. */
 export const MAX_HEADLESS_TICKS = 100_000;
@@ -35,7 +57,12 @@ export type RunOutcome = {
 const serialise = (event: SimEvent): string =>
   JSON.stringify(Object.entries(event).sort(([a], [b]) => a.localeCompare(b)));
 
-export function runHeadless(config: RunConfig, seed: number, layout: readonly Tile[]): RunOutcome {
+export function runHeadless(
+  config: RunConfig,
+  seed: number,
+  layout: readonly Tile[],
+  spend: SpendPolicy = 'none',
+): RunOutcome {
   let run = createRun(config, seed);
   const hash = createHash('sha256');
   let placed = false;
@@ -74,15 +101,14 @@ export function runHeadless(config: RunConfig, seed: number, layout: readonly Ti
 
     let commands: Command[] = [];
     if (run.phase === 'build') {
-      if (placed) {
-        commands = [{ type: 'StartSprint' }];
-      } else {
-        placed = true;
-        commands = [
-          ...layout.map((tile): Command => ({ type: 'PlaceDesk', x: tile.x, y: tile.y })),
-          { type: 'StartSprint' },
-        ];
-      }
+      const purchases = buys(run, spend);
+      // Purchases ride in the same batch as StartSprint — before it, so they land while the
+      // phase is still 'build'. No extra tick is spent, so the per-wave tick accounting is
+      // unchanged.
+      commands = placed
+        ? [...purchases, { type: 'StartSprint' }]
+        : [...layout.map((tile): Command => ({ type: 'PlaceDesk', x: tile.x, y: tile.y })), ...purchases, { type: 'StartSprint' }];
+      placed = true;
     }
 
     const inWave = run.wave !== null;
