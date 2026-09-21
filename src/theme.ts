@@ -9,3 +9,6 @@ export const FLASH_COLOUR = '#ffffff';
 export const VALID_COLOUR = '#6fe3a8';
 export const INVALID_COLOUR = '#ff6b6b';
 export const BACKDROP_COLOUR = '#0d1117';
+export const AURA_COLOUR = '#a78bfa';
+export const XP_COLOUR = '#ffd76a';
+export const SELECT_COLOUR = '#ffffff';

@@ -187,6 +187,55 @@ export async function clickTile(page: Page, x: number, y: number): Promise<void>
 export const setTimeScale = (page: Page, scale: number) =>
   page.evaluate((s) => window.__ofp!.setTimeScale(s), scale);
 
+export const select = (page: Page, deskId: number) =>
+  page.evaluate((id) => window.__ofp!.select(id), deskId);
+
+/**
+ * Waits until the sim has advanced `ticks` further ticks. A barrier, not a sleep: it proves that
+ * anything a click queued has been through `tick()` and been applied or refused, which is what
+ * "a disabled control sends no command" and "an invalid tile does nothing" need before they can
+ * read the snapshot and believe it. The sim ticks in the build phase too (`tick()` returns early
+ * only at victory or defeat), so this is safe to call between waves.
+ */
+export async function awaitTicks(page: Page, ticks = 5): Promise<void> {
+  const from = await page.evaluate(() => window.__ofp!.snapshot().tick);
+  await expect
+    .poll(async () => page.evaluate(() => window.__ofp!.snapshot().tick))
+    .toBeGreaterThan(from + ticks);
+}
+
+/**
+ * Plays whole sprints until `deskId` is standing in the build phase with at least `xp` unspent.
+ * XP exists only where kills happened, so a spec about spending has to earn first; this pays for
+ * exactly the waves it needs and no more. Shaped like `playToEnd`, including the swallowed
+ * click: the phase read is a tick old by the time the click is dispatched.
+ */
+export async function earnXp(
+  page: Page,
+  deskId: number,
+  xp: number,
+  timeoutMs = 150_000,
+): Promise<void> {
+  const deadline = Date.now() + timeoutMs;
+  for (;;) {
+    const state = await page.evaluate((id) => {
+      const snap = window.__ofp!.snapshot();
+      return { phase: snap.phase as string, xp: snap.desks.find((d) => d.id === id)?.xp ?? 0 };
+    }, deskId);
+    if (state.phase === 'build' && state.xp >= xp) return;
+    if (state.phase === 'victory' || state.phase === 'defeat') {
+      throw new Error(`run ended in ${state.phase} with desk ${deskId} on ${state.xp} xp, needed ${xp}`);
+    }
+    if (Date.now() > deadline) {
+      throw new Error(`desk ${deskId} still on ${state.xp} xp after ${timeoutMs}ms`);
+    }
+    if (state.phase === 'build') {
+      await page.getByTestId('start-sprint').click({ timeout: 2_000 }).catch(() => undefined);
+    }
+    await page.waitForTimeout(150);
+  }
+}
+
 export const tiles = (snap: { desks: { x: number; y: number }[] }) =>
   snap.desks.map((d) => `${d.x},${d.y}`).sort();
 

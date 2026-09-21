@@ -5,9 +5,12 @@ import { GameContext } from './game/GameContext';
 import { nextSeed } from './game/seed';
 import { createVfxBus } from './render/vfx/bus';
 import { resetHud } from './store/hud';
+import { resetDesks } from './store/desks';
+import { clearSelection, selectDesk } from './store/selection';
 import { installBridge, clearBridge } from './dev/bridge';
 import { Stage } from './render/Stage';
 import { Hud } from './ui/Hud';
+import { DeskInspector } from './ui/DeskInspector';
 import { Overlays } from './ui/Overlays';
 import { DamageNumbers } from './ui/DamageNumbers';
 
@@ -27,6 +30,8 @@ function GameRun({ seed, onRestart }: { seed: number; onRestart: () => void }): 
 
   useEffect(() => {
     resetHud(engine.current);
+    resetDesks(engine.current);
+    clearSelection(); // desk ids restart with the run; a stale id would select a stranger
   }, [engine]);
 
   useEffect(() => {
@@ -37,8 +42,9 @@ function GameRun({ seed, onRestart }: { seed: number; onRestart: () => void }): 
       setTimeScale: (s) => {
         engine.timeScale = s;
       },
+      select: (deskId) => selectDesk(deskId),
     });
-    return () => clearBridge(['snapshot', 'seed', 'setTimeScale']);
+    return () => clearBridge(['snapshot', 'seed', 'setTimeScale', 'select']);
   }, [engine]);
 
   const onStart = useCallback(() => engine.submit({ type: 'StartSprint' }), [engine]);
@@ -47,6 +53,7 @@ function GameRun({ seed, onRestart }: { seed: number; onRestart: () => void }): 
     <GameContext.Provider value={ctx}>
       <Stage ctx={ctx} />
       <Hud onStart={onStart} />
+      <DeskInspector />
       <Overlays onRestart={onRestart} />
       <DamageNumbers />
     </GameContext.Provider>

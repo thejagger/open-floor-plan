@@ -2,7 +2,8 @@ import { useState } from 'react';
 import type { JSX } from 'react';
 import type { ThreeEvent } from '@react-three/fiber';
 import { useGame } from '../game/GameContext';
-import { commandForTile, tileAtPoint } from '../game/placement';
+import { commandForTile, deskAtTile, tileAtPoint } from '../game/placement';
+import { selectDesk, useSelection } from '../store/selection';
 import type { Tile } from '../sim';
 import { MILESTONE_1_BOARD } from '../content/board';
 import { BOARD_CENTRE, BOARD_H, BOARD_W, GROUND_Y } from './tuning';
@@ -19,7 +20,16 @@ export function Ground(): JSX.Element {
   const onClick = (e: ThreeEvent<MouseEvent>) => {
     const tile = tileAtPoint(MILESTONE_1_BOARD, e.point.x, e.point.z);
     if (!tile) return;
-    const command = commandForTile(MILESTONE_1_BOARD, engine.current, tile);
+    const snap = engine.current;
+    // Read, don't subscribe: Ground has no reason to re-render when the selection changes, and
+    // the handler always wants the value as of the click.
+    const selection = useSelection.getState().deskId;
+    const desk = snap.phase === 'build' ? deskAtTile(snap, tile) : null;
+    if (desk) {
+      selectDesk(desk.id);
+      return;
+    }
+    const command = commandForTile(MILESTONE_1_BOARD, snap, selection, tile);
     if (command) engine.submit(command);
   };
 

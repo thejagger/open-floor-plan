@@ -1,7 +1,7 @@
 import { inBounds, placementError } from '../sim';
-import type { BoardDef, Command, Snapshot, Tile } from '../sim';
+import type { BoardDef, Command, EntityId, Snapshot, SnapshotDesk, Tile } from '../sim';
 
-export type TileStatus = 'placeable' | 'removable' | 'blocked';
+export type TileStatus = 'placeable' | 'moveTarget' | 'desk' | 'blocked';
 
 /** Board-plane point -> tile. One world unit per tile; tile (x,y) is centred at world (x,0,y). */
 export function tileAtPoint(board: BoardDef, worldX: number, worldZ: number): Tile | null {
@@ -11,23 +11,44 @@ export function tileAtPoint(board: BoardDef, worldX: number, worldZ: number): Ti
   return inBounds(board, tile.x, tile.y) ? tile : null;
 }
 
-export function tileStatus(board: BoardDef, snap: Snapshot, tile: Tile): TileStatus {
-  if (snap.phase !== 'build') return 'blocked';
-  if (snap.desks.some((d) => d.x === tile.x && d.y === tile.y)) return 'removable';
-  if (snap.desksPlaced >= snap.deskBudget) return 'blocked';
-  const occupied = snap.desks.map((d) => ({ x: d.x, y: d.y }));
-  return placementError(board, occupied, tile.x, tile.y) === null ? 'placeable' : 'blocked';
+export function deskAtTile(snap: Snapshot, tile: Tile): SnapshotDesk | null {
+  return snap.desks.find((d) => d.x === tile.x && d.y === tile.y) ?? null;
 }
 
-/** The command a click on this tile should send, or null when the click does nothing. */
-export function commandForTile(board: BoardDef, snap: Snapshot, tile: Tile): Command | null {
-  switch (tileStatus(board, snap, tile)) {
+/**
+ * Selection changes what a click on the same tile means, so it is an argument here rather than
+ * something the caller reconciles afterwards. A selection naming a desk that is no longer on the
+ * board falls back to placing: a stale id must not turn every empty tile into a destination for
+ * a person who does not exist.
+ */
+export function tileStatus(
+  board: BoardDef,
+  snap: Snapshot,
+  selection: EntityId | null,
+  tile: Tile,
+): TileStatus {
+  if (snap.phase !== 'build') return 'blocked';
+  if (deskAtTile(snap, tile) !== null) return 'desk';
+  const occupied = snap.desks.map((d) => ({ x: d.x, y: d.y }));
+  if (placementError(board, occupied, tile.x, tile.y) !== null) return 'blocked';
+  if (selection !== null && snap.desks.some((d) => d.id === selection)) return 'moveTarget';
+  return snap.desksPlaced >= snap.deskBudget ? 'blocked' : 'placeable';
+}
+
+/** The command a click on this tile should send, or null when the click sends nothing. Selecting
+ *  a desk is not a command — the sim never hears about it — so 'desk' yields null here and
+ *  `Ground` handles the selection itself. */
+export function commandForTile(
+  board: BoardDef,
+  snap: Snapshot,
+  selection: EntityId | null,
+  tile: Tile,
+): Command | null {
+  switch (tileStatus(board, snap, selection, tile)) {
     case 'placeable':
       return { type: 'PlaceDesk', x: tile.x, y: tile.y };
-    case 'removable': {
-      const desk = snap.desks.find((d) => d.x === tile.x && d.y === tile.y)!;
-      return { type: 'RemoveDesk', deskId: desk.id };
-    }
+    case 'moveTarget':
+      return { type: 'MoveDesk', deskId: selection as EntityId, x: tile.x, y: tile.y };
     default:
       return null;
   }

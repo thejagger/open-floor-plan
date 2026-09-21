@@ -11,3 +11,7 @@ the pull to verify what was waiting on it. Never production.
 ## balance-harness
 
 - [ ] **proves** · Wave length and run length are settled, and the chosen values recorded · the harness produces the consequences of each candidate but cannot hold an opinion about whether a wave feels snappy or weighty, and no test in this repo can either · run `npm run balance`, read the `wave s` column for the four candidates and `leaks/wave` on the `random` row (`kills/desk/wave` and `win%` do not move along the wave-length axis), then play the top two or three with `npm run dev` and choose; record the chosen wave length and run length in `docs/ristretto/plans/balance-harness.md` under `Decisions:` and commit them into `src/content/waves.ts` and `src/content/run.ts`
+
+## progression-ui
+
+- [ ] **proves** · the craft-versus-process fork feels like a real choice · no test in this repo can hold that opinion; it is the question milestone 2 exists to answer and the game design plan says to rework the fork here if the answer is no · run `npm run dev` and play several full runs, taking one desk deep in craft and another deep in process, then judge whether deep process was ever worth taking over more damage — and if it was not, say so, because a negative answer is the useful result

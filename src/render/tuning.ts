@@ -25,6 +25,10 @@ export const BUG_Y = 0.3;
  *  not DESK_Y or FLOOR_Y — or a click computed against a different height parallax-shifts off
  *  the tile it meant to hit once the camera isn't looking straight down. */
 export const GROUND_Y = FLOOR_Y + 0.05;
+/** Above the path tiles (their top face is at 0.06) so an aura ring is not swallowed by the
+ *  corridor it most often overlaps; the selection ring sits one hair above the aura. */
+export const AURA_Y = FLOOR_Y + 0.07;
+export const SELECT_Y = FLOOR_Y + 0.08;
 
 export const DOF = { focusDistance: 0.012, focalLength: 0.06, bokehScale: 3.5 };
 export const BLOOM = { intensity: 0.7, luminanceThreshold: 0.95, luminanceSmoothing: 0.2 };

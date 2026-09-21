@@ -104,6 +104,120 @@ html, body, #root {
   cursor: pointer;
 }
 
+.inspector {
+  position: absolute;
+  right: 16px;
+  bottom: 16px;
+  width: 268px;
+  padding: 14px 16px;
+  border-radius: 10px;
+  background: rgba(22, 27, 34, 0.94);
+  color: #e6edf3;
+  font-family: system-ui, sans-serif;
+  font-size: 13px;
+  pointer-events: auto;
+}
+
+.inspector__head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+
+.inspector__title {
+  font-size: 18px;
+  font-weight: 700;
+  text-transform: capitalize;
+}
+
+.inspector__close {
+  border: none;
+  background: none;
+  color: #e6edf3;
+  opacity: 0.6;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  cursor: pointer;
+}
+
+.inspector__row {
+  display: flex;
+  justify-content: space-between;
+  padding: 2px 0;
+}
+
+.inspector__label {
+  opacity: 0.7;
+  text-transform: capitalize;
+}
+
+.inspector__value {
+  font-weight: 700;
+}
+
+.inspector__path {
+  display: grid;
+  grid-template-columns: 1fr auto auto auto;
+  align-items: center;
+  gap: 8px;
+  margin-top: 10px;
+  padding-top: 8px;
+  border-top: 1px solid rgba(230, 237, 243, 0.12);
+}
+
+.inspector__price {
+  opacity: 0.8;
+}
+
+.inspector__lock {
+  grid-column: 1 / -1;
+  font-size: 11px;
+  color: #ffb454;
+}
+
+.inspector__buy {
+  padding: 4px 10px;
+  border: none;
+  border-radius: 4px;
+  background: var(--role-developer, #4ea8ff);
+  color: #0d1117;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.inspector__buy:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+.inspector__remove {
+  display: flex;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.inspector__remove button {
+  padding: 4px 10px;
+  border: none;
+  border-radius: 4px;
+  background: #30363d;
+  color: #e6edf3;
+  cursor: pointer;
+}
+
+.inspector__remove button:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+.inspector__remove .inspector__danger {
+  background: #ff6b6b;
+  color: #0d1117;
+  font-weight: 700;
+}
+
 .damage-numbers {
   position: absolute;
   inset: 0;

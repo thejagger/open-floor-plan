@@ -3,7 +3,8 @@ import type { JSX } from 'react';
 import { useFrame } from '@react-three/fiber';
 import { useGame } from '../game/GameContext';
 import { tileStatus } from '../game/placement';
-import type { Snapshot, Tile } from '../sim';
+import { useSelection } from '../store/selection';
+import type { EntityId, Snapshot, Tile } from '../sim';
 import { MILESTONE_1_BOARD } from '../content/board';
 import { DEVELOPER } from '../content/roles';
 import { FLOOR_Y } from './tuning';
@@ -12,11 +13,11 @@ import { PrimitiveDesk } from './entities/PrimitiveDesk';
 
 type Preview = { tile: Tile; valid: boolean } | null;
 
-function computePreview(snap: Snapshot, tile: Tile | null): Preview {
+function computePreview(snap: Snapshot, selection: EntityId | null, tile: Tile | null): Preview {
   if (!tile || snap.phase !== 'build') return null;
-  const status = tileStatus(MILESTONE_1_BOARD, snap, tile);
-  if (status === 'removable') return null;
-  return { tile, valid: status === 'placeable' };
+  const status = tileStatus(MILESTONE_1_BOARD, snap, selection, tile);
+  if (status === 'desk') return null;
+  return { tile, valid: status === 'placeable' || status === 'moveTarget' };
 }
 
 const samePreview = (a: Preview, b: Preview): boolean => (
@@ -29,9 +30,11 @@ export function HoverPreview({ tile }: { tile: Tile | null }): JSX.Element | nul
   // pointer crossing to another tile still changes what this tile's status is, and reading
   // `engine.current` only during React's own render (gated on the `tile` prop changing) would
   // leave a stale ghost — still green, say — drawn over the desk that click just placed.
-  const [preview, setPreview] = useState<Preview>(() => computePreview(engine.current, tile));
+  const [preview, setPreview] = useState<Preview>(
+    () => computePreview(engine.current, useSelection.getState().deskId, tile),
+  );
   useFrame(() => {
-    const next = computePreview(engine.current, tile);
+    const next = computePreview(engine.current, useSelection.getState().deskId, tile);
     setPreview((prev) => (samePreview(prev, next) ? prev : next));
   });
 

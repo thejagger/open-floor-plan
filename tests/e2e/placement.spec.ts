@@ -50,20 +50,6 @@ test('places nothing on a path tile, and nothing once the budget is spent', { ta
   await expect(page.getByTestId('desks-remaining')).toHaveText('0');
 });
 
-test('removes a desk that is clicked again and returns it to the budget', { tag: '@fast' }, async ({ page, problems }) => {
-  await openGame(page, { fx: 'off' });
-  await clickTile(page, EMPTY.x, EMPTY.y);
-  await expect.poll(pollState(page, (s) => s.stats.deskObjects, problems)).toBe(1);
-
-  await clickTile(page, EMPTY.x, EMPTY.y);
-
-  await expect.poll(pollState(page, (s) => s.stats.deskObjects, problems)).toBe(0);
-  const after = await read(page);
-  expect(after.snapshot.desks).toEqual([]);
-  expect(after.snapshot.desksPlaced).toBe(0);
-  await expect(page.getByTestId('desks-remaining')).toHaveText(String(after.snapshot.deskBudget));
-});
-
 test('ignores clicks while a wave is running', { tag: '@fast' }, async ({ page, problems }) => {
   await openGame(page, { fx: 'off' });
   await clickTile(page, EMPTY.x, EMPTY.y);

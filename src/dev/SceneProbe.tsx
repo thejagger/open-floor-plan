@@ -5,7 +5,9 @@ import { installBridge, clearBridge } from './bridge';
 import type { SceneStats } from './bridge';
 import { projectTile } from './projectTile';
 
-const ZERO_STATS: SceneStats = { frame: 0, drawCalls: 0, bugInstances: 0, bugsLive: 0, deskObjects: 0 };
+const ZERO_STATS: SceneStats = {
+  frame: 0, drawCalls: 0, bugInstances: 0, bugsLive: 0, deskObjects: 0, auras: [],
+};
 
 let stats: SceneStats = ZERO_STATS;
 
@@ -22,12 +24,17 @@ export function SceneProbe({ bugsLive }: { bugsLive: () => number }): null {
   useFrame(() => {
     const bugs = scene.getObjectByName('bugs') as THREE.InstancedMesh | null;
     const desks = scene.getObjectByName('desks');
+    const auras = scene.getObjectByName('auras');
     stats = {
       frame: stats.frame + 1,
       drawCalls: gl.info.render.calls,
       bugInstances: bugs?.count ?? 0,
       bugsLive: bugsLive(),
       deskObjects: desks?.children.length ?? 0,
+      auras: (auras?.children ?? []).map((ring) => ({
+        deskId: Number(ring.name.replace('aura-', '')),
+        radius: ((ring as THREE.Mesh).geometry as THREE.RingGeometry).parameters.outerRadius,
+      })),
     };
     gl.info.reset(); // autoReset was turned off on the Canvas
   });

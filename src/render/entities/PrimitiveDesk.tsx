@@ -1,6 +1,6 @@
 import type { JSX } from 'react';
 import { DESK_Y } from '../tuning';
-import { ROLE_COLOUR } from '../../theme';
+import { ROLE_COLOUR, XP_COLOUR } from '../../theme';
 import type { DeskVisualProps } from '../registry';
 
 export type PrimitiveDeskProps = DeskVisualProps & {
@@ -10,7 +10,9 @@ export type PrimitiveDeskProps = DeskVisualProps & {
 };
 
 /** A blocky desk primitive: slab, two legs, a monitor plane, tinted by role. */
-export function PrimitiveDesk({ x, y, role, opacity = 1, tint }: PrimitiveDeskProps): JSX.Element {
+export function PrimitiveDesk({
+  x, y, role, craft = 0, unspent = false, opacity = 1, tint,
+}: PrimitiveDeskProps): JSX.Element {
   const colour = tint ?? ROLE_COLOUR[role] ?? ROLE_COLOUR.developer;
   const transparent = opacity < 1;
   return (
@@ -38,6 +40,23 @@ export function PrimitiveDesk({ x, y, role, opacity = 1, tint }: PrimitiveDeskPr
           opacity={opacity}
         />
       </mesh>
+      {Array.from({ length: craft }, (_, i) => (
+        <mesh key={i} castShadow={!transparent} position={[0.26, 0.28 + i * 0.09, -0.02]}>
+          <boxGeometry args={[0.12, 0.08, 0.12]} />
+          <meshStandardMaterial
+            color={colour}
+            roughness={0.5}
+            transparent={transparent}
+            opacity={opacity}
+          />
+        </mesh>
+      ))}
+      {unspent && (
+        <mesh position={[0, 0.66, 0]} rotation-x={Math.PI / 2}>
+          <torusGeometry args={[0.09, 0.028, 8, 16]} />
+          <meshStandardMaterial color={XP_COLOUR} emissive={XP_COLOUR} emissiveIntensity={1.8} />
+        </mesh>
+      )}
     </group>
   );
 }
