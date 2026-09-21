@@ -47,4 +47,48 @@ The fast lane is deliberately not a gate. `.ristretto.json` keeps routing UI cha
 - Depends: —
 - Parallel-with: —
 
-status: planned
+## Evidence
+
+Gates green on `d58cd72` (feature/brew-2026-09-21): `npx vitest run` — 27 unit tests passing,
+Duration 4.07s (baseline 8.69s), `tests/boundary.test.ts` alone 3480ms (baseline 7,931ms) — one
+lint spawn for the whole file, not two.
+
+Criterion -> proof:
+
+| Criterion | Proof |
+| --- | --- |
+| one lint spawn, still names every probe file and banned specifier | `tests/boundary.test.ts > the renderer-free boundary > npm run lint fails when $path imports the render layer` (`it.each(PROBES)`, 2 cases) — `beforeAll` spawns lint once with both probes planted; each case asserts against `reportFor(output, path)`, the report block for that probe alone, so a probe whose glob fell out of `eslint.config.js` would report nothing and the case would fail |
+| unit suite < 6s, 27 tests passing | measured: `npx vitest run` — 27/27 passing, Duration 4.07s (baseline 8.69s); `boundary.test.ts` alone 3480ms (baseline 7,931ms) |
+| HUD-per-wave and victory-overlay proven by one five-wave playback, not two | `overlays.spec.ts > tracks the sim in the HUD through five waves, shows the victory overlay, and restarts into a new run`; `hud.spec.ts` deleted |
+| exactly two specs play to victory, one to defeat | victory: the merged `overlays.spec.ts` test and `run.spec.ts > plays a full five-wave run with no uncaught exception and no console error`; defeat: `overlays.spec.ts > shows the defeat overlay at uptime 0 and restarts into a new run`; `scene.spec.ts` samples a wave in flight and calls neither `start-sprint` to completion nor `playToEnd` (confirmed by grep across `tests/e2e/*.spec.ts`) |
+| every prior assertion still exists | HUD uptime/wave compared against the sim snapshot at each of the five wave boundaries (loop body, `overlays.spec.ts`); uptime shown to move (`expect(seen[seen.length - 1]).toBeLessThan(seen[0])`); victory overlay visible, defeat overlay absent; restart-to-fresh-run assertions (new seed, full uptime, wave 1, no desks) unchanged after the merged test |
+| `npm run test:e2e:fast` runs only specs that never start a wave, < 35s | 5 `@fast` tests total — `instancing.spec.ts` (1) and `placement.spec.ts` (4) — the full set of specs that never call `start-sprint`/`playToEnd` |
+| `npm run test:e2e` still runs every spec, tagged or not | `package.json`'s `test:e2e` script is unchanged (`playwright test`, no `--grep`); `test:e2e:fast` is a separate, additive script |
+
+Implementer caveat on the `test:e2e:fast` timing criterion: the 5-test fast lane passes in 23.4s
+when a dev server is already up (the inner-loop case Playwright's `reuseExistingServer` targets),
+but 36.8-41.0s cold, where ~15s is Vite boot plus browser launch that the contract's in-suite
+28.5s baseline never included. Recorded, not treated as a failure: the fast lane is an inner-loop
+convenience, never a gate — `.ristretto.json` still routes every UI change at the full suite, and
+`npm run test:e2e` still runs this test unchanged.
+
+Review notes not acted on by this close (non-blocking, left for the historical record):
+- `tests/e2e/placement.spec.ts:67` — `ignores clicks while a wave is running` carries `@fast` but
+  does start a wave (clicks start-sprint, polls to phase `running`), so the fast lane's stated
+  boundary — "only the specs that never start a wave" — is not literally true. Suggested fix: drop
+  the tag from that test, or restate the boundary as "never plays a wave to the end".
+- `docs/ristretto/plans/archived/render-diorama.md:90` — the archived proof table still cites
+  `hud.spec.ts > shows the sim's uptime after every wave of a full run`, a file and test name this
+  diff deletes. Suggested repoint: `overlays.spec.ts > tracks the sim in the HUD through five
+  waves, shows the victory overlay, and restarts into a new run`.
+- `tests/boundary.test.ts:56` — `expect(status).not.toBe(0)` is a property of the one shared spawn
+  but is asserted once per `it.each` row, so both cases re-prove the same exit code. Suggested
+  fix: assert it once (its own `it`, or in `beforeAll`).
+- `tests/e2e/overlays.spec.ts:42` — the `wave` loop counter is never read in the body and is
+  shadowed by the destructured `wave` inside the poll callback two lines down. Suggested fix:
+  `for (let i = 0; i < 5; i += 1)`.
+
+review: notes-only · rounds: 1 · open: 0 block, 2 note, 2 lean
+tier: easy
+
+status: done
