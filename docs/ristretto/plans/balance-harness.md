@@ -21,13 +21,13 @@
     `runHeadless(config: RunConfig, seed: number, layout: Tile[]): RunOutcome`;
     `sweep(configs: BalanceConfig[], seeds: number[]): BalanceReport`;
     `npm run balance`
-- Consumes: —
+- Consumes: `PROBES: { path: string; banned: string[] }[]` in `tests/boundary.test.ts` — from suite-cost
 - Decisions:
   - Where the harness lives -> `tools/`, a fourth consumer of `sim/`, importing `sim/` and `content/` only. It never imports `src/game/`: `engine.ts` and `stepper.ts` reconcile a 20Hz sim with a browser frame clock, and headless has no frames.
   - Running a TypeScript CLI -> `tsx` as a devDependency. Node's built-in type stripping is still experimental and the harness should not be hung on it.
   - `RunConfig` field count -> four fields in this feature. `progression` is added by progression-core; a config field nothing reads is a promise the next feature may not want to keep.
   - ESLint shape -> the single `src/sim/**` + `src/content/**` block splits in two, because banning `../content` across both would stop content importing its own siblings. Same rule object, two file globs, one extra pattern on the sim half.
-  - Boundary probe shape -> the banned list becomes per-probe rather than shared, for the same reason.
+  - Boundary probe shape -> the banned list is per-probe rather than shared, for the same reason. suite-cost makes it per-probe and collapses the two lint spawns into one; this feature adds the `../content` entry to the sim probe. Sequenced that way so two features do not restructure the same test in conflicting directions.
   - Layout axis -> three hand-authored named layouts (spread along the path, clustered at the entrance, clustered at Production) plus a seeded random sampler, so no configuration is judged on one lucky arrangement.
   - Report output -> stdout table plus JSON under a gitignored directory, so one sweep can be diffed against a later one. The directory is added to `.gitignore` in this feature.
   - Gate routing -> `tools/**` currently matches no `testChanged` route in `.ristretto.json` and gets one here, pointing at the vitest unit route.
@@ -35,7 +35,7 @@
   - What the harness cannot do -> it cannot decide whether thirty seconds is snappy or ninety is weighty. It produces the consequences of each candidate; the judgement is the `[human]` criterion.
 - Units:
   - The seam: `RunConfig` threaded through `createRun` and `tick`, desk stats resolved from the run's own role table, `engine.ts` and `tests/helpers/sim.ts` updated to pass a config.
-  - The boundary: ESLint block split, `../content` banned from `src/sim`, `tests/boundary.test.ts` extended to a per-probe banned list.
+  - The boundary: ESLint block split, `../content` banned from `src/sim`, and the sim probe's entry in suite-cost's per-probe banned list extended to cover it.
   - The headless driver: `runHeadless` looping `tick()` to a terminal phase, collecting per-wave metrics and an event-stream hash.
   - The sweep: config grid, the three named layouts plus the random sampler, distributions across seeds, the metric set.
   - The CLI: `npm run balance`, `tsx` devDependency, JSON output directory gitignored, `tools/**` gate route, `tsconfig` include.
@@ -52,7 +52,7 @@ The boundary work is small but worth doing here rather than later: the technical
 The harness itself is an ordinary Node program: build a config, loop `tick()` until victory or defeat, accumulate metrics, repeat across seeds and configurations. The discriminating criterion matters more than it looks — a harness whose numbers do not move with its inputs is the one failure mode that would poison every balance decision downstream, and it is invisible to every other check here.
 
 - Likely touchpoints: src/sim/sim.ts, src/content/, src/game/engine.ts, tests/helpers/sim.ts, tests/boundary.test.ts, eslint.config.js, tools/ (new), package.json, tsconfig.json, .ristretto.json, .gitignore
-- Depends: —
+- Depends: suite-cost
 - Parallel-with: —
 
 status: planned

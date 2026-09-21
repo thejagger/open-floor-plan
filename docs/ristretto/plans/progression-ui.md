@@ -33,6 +33,9 @@
   - HUD -> unchanged. XP is per-person and belongs on the person; there is no new global counter.
   - Layout, wording, ordering of inspector rows and the styling of the lock marker -> implementer's call within the existing `ui.css` language. These are build instructions, not behaviours, and none of them become assertions.
   - Gate routing -> `src/ui`, `src/store` and `src/render` already route to Playwright via the `render` entry in `.ristretto.json`; no gate changes needed.
+  - How the e2e criteria are grouped into specs -> few specs sharing a page load, not one spec per criterion. Measured on the milestone-1 suite: a Playwright spec costs 2-3s of SwiftShader page load before it asserts anything, and this contract has nine `[auto]` criteria. One spec each would add 30-45s of pure startup to a suite that already takes 138s, and the `render` route runs all of it on every change under `src/ui`. Group by flow — selection and inspector display in one, buy and lock in one, move and confirm-remove in one — so a page load is amortised across several assertions. This is a build instruction, not a behaviour; it binds the implementer and is checked by reading.
+  - Inner loop -> `npm run test:e2e:fast` (from suite-cost) runs the specs that never start a wave. Use it between edits; it is not a gate, and the full suite still runs at close.
+  - What must not happen -> dropping a criterion to save suite time. The grouping above exists so that every one of the nine can be proven without nine page loads, not so that some of them go unproven.
 - Units:
   - Selection store and the `placement.ts` rework: `tileStatus` and `commandForTile` become functions of selection and tile.
   - The inspector panel as a read-only view of the selected desk.
