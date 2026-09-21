@@ -9,7 +9,7 @@ async function drawCallsWith(page: Page, bugs: number): Promise<number> {
   return stats.drawCalls;
 }
 
-test('renders 25 bugs in the same number of draw calls as 1', async ({ page }) => {
+test('renders 25 bugs in the same number of draw calls as 1', { tag: '@fast' }, async ({ page }) => {
   const one = await drawCallsWith(page, 1);
   const many = await drawCallsWith(page, 25);
   expect(one).toBeGreaterThan(0);

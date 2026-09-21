@@ -11,7 +11,7 @@ const THIRD = { x: 8, y: 2 };
 const FOURTH = { x: 10, y: 1 };
 const PATH = { x: 4, y: 1 };
 
-test('places a desk on an empty non-path tile and draws it', async ({ page, problems }) => {
+test('places a desk on an empty non-path tile and draws it', { tag: '@fast' }, async ({ page, problems }) => {
   await openGame(page, { fx: 'off' });
   const before = await read(page);
   expect(before.snapshot.desks).toEqual([]);
@@ -27,7 +27,7 @@ test('places a desk on an empty non-path tile and draws it', async ({ page, prob
     .toHaveText(String(before.snapshot.deskBudget - 1));
 });
 
-test('places nothing on a path tile, and nothing once the budget is spent', async ({ page, problems }) => {
+test('places nothing on a path tile, and nothing once the budget is spent', { tag: '@fast' }, async ({ page, problems }) => {
   await openGame(page, { fx: 'off' });
 
   await clickTile(page, PATH.x, PATH.y);
@@ -50,7 +50,7 @@ test('places nothing on a path tile, and nothing once the budget is spent', asyn
   await expect(page.getByTestId('desks-remaining')).toHaveText('0');
 });
 
-test('removes a desk that is clicked again and returns it to the budget', async ({ page, problems }) => {
+test('removes a desk that is clicked again and returns it to the budget', { tag: '@fast' }, async ({ page, problems }) => {
   await openGame(page, { fx: 'off' });
   await clickTile(page, EMPTY.x, EMPTY.y);
   await expect.poll(pollState(page, (s) => s.stats.deskObjects, problems)).toBe(1);
@@ -64,7 +64,7 @@ test('removes a desk that is clicked again and returns it to the budget', async 
   await expect(page.getByTestId('desks-remaining')).toHaveText(String(after.snapshot.deskBudget));
 });
 
-test('ignores clicks while a wave is running', async ({ page, problems }) => {
+test('ignores clicks while a wave is running', { tag: '@fast' }, async ({ page, problems }) => {
   await openGame(page, { fx: 'off' });
   await clickTile(page, EMPTY.x, EMPTY.y);
   await expect.poll(pollState(page, (s) => s.stats.deskObjects, problems)).toBe(1);
