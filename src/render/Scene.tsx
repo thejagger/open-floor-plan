@@ -66,7 +66,7 @@ export function Scene(): JSX.Element {
       />
       {EFFECTS_ENABLED && (
         <EffectComposer>
-          <DepthOfField {...DOF} />
+          <DepthOfField target={BOARD_CENTRE} {...DOF} />
           <Bloom mipmapBlur {...BLOOM} />
           <Vignette {...VIGNETTE} />
         </EffectComposer>

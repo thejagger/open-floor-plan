@@ -30,7 +30,11 @@ export const GROUND_Y = FLOOR_Y + 0.05;
 export const AURA_Y = FLOOR_Y + 0.07;
 export const SELECT_Y = FLOOR_Y + 0.08;
 
-export const DOF = { focusDistance: 0.012, focalLength: 0.06, bokehScale: 3.5 };
+/** postprocessing 6.x reads the focus in world units from the camera, not normalised depth.
+ *  Scene autofocuses on BOARD_CENTRE, so the focus follows zoom and orbit; focusRange is how
+ *  far either side of it the blur takes to reach full strength — wide enough to keep the whole
+ *  board crisp and let only the floor beyond it soften. */
+export const DOF = { focusRange: 30, bokehScale: 3.5 };
 export const BLOOM = { intensity: 0.7, luminanceThreshold: 0.95, luminanceSmoothing: 0.2 };
 export const VIGNETTE = { offset: 0.28, darkness: 0.85 };
 
